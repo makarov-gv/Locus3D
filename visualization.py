@@ -1,4 +1,4 @@
-import pygame
+# moderngl? vpython? panda3d? vispy?
 import gs_lps
 from random import randint
 
