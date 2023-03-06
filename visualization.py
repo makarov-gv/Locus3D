@@ -75,5 +75,5 @@ class LocusVisualization(pygame.sprite.Sprite):
 
 
 if __name__ == "__main__":
-    name_list = ["blue_drone", "blue_robot", "red_drone", "red_robot", "blue_drone", "blue_robot", "red_drone", "red_robot"]
+    name_list = ["blue_drone", "blue_robot", "red_drone", "blue_drone", "blue_robot", "red_drone", "red_robot"]
     gui = LocusVisualization(name_list)
