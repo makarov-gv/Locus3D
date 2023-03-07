@@ -2,7 +2,7 @@ import sys
 from direct.showbase.ShowBase import ShowBase
 from direct.actor.Actor import Actor
 from panda3d.core import *
-from gs_random import LocusRandomizer
+from randomizer import Randomizer
 
 QUANTITY = 16
 # TODO: окошко с координатами каждого дрона, дрон - сфера изменяемого цвета d/r 10 см, функция записи шоу,
@@ -72,7 +72,7 @@ def draw_grid(render):
 class Locus3D(ShowBase):
     def __init__(self):
         ShowBase.__init__(self)
-        self.gs = LocusRandomizer()
+        self.gs = Randomizer()
 
         draw_axis(self.render)
         draw_grid(self.render)
@@ -89,8 +89,6 @@ class Locus3D(ShowBase):
         taskMgr.add(self.move, 'moveTask')
 
     def move(self, task):
-        self.gs.main()
-        
         pos = self.gs.get_pos()
         print(pos)
         if pos is not None:

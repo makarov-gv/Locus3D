@@ -4,7 +4,8 @@ from threading import Thread
 
 QUANTITY = 16
 
-class LocusRandomizer(Thread):
+
+class Randomizer(Thread):
     def __init__(self):
         Thread.__init__(self)
         self.pos = []
@@ -13,9 +14,8 @@ class LocusRandomizer(Thread):
             y = randint(-550, 550)
             z = randint(0, 400)
             self.pos.append((x, y, z))
-        self.main()
 
-    def main(self):
+    def _randomize(self):
         for i in range(QUANTITY):
             x, y, z = self.pos[i][0], self.pos[i][1], self.pos[i][2]
             x += randint(-5, 5)
@@ -29,6 +29,7 @@ class LocusRandomizer(Thread):
             self.pos[i] = (x, y, z)
 
     def get_pos(self):
+        self._randomize()
         if len(self.pos) > 3:
             return self.pos
         else:
