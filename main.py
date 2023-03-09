@@ -96,7 +96,7 @@ class Locus3D(ShowBase):
 
         self.drones = []
         for i in range(quantity):
-            drone = Actor("models/sphere")
+            drone = Actor("colorable_sphere")
             drone.setScale(0.22, 0.22, 0.22)
             drone.setColor(0.4, 0.05*i, 0.05*i, 1)  # can be recolored
             drone.reparentTo(self.render)
