@@ -6,7 +6,7 @@ import serial
 import struct
 from threading import Thread
 import math
-from random import randint
+from randomizer import randint
 
 
 class crc8(object):
