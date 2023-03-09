@@ -1,11 +1,9 @@
-from datetime import date
-import os, timeit, json
-import pandas as pd
-import _temp.randomizer  # to change with lps
 from direct.gui.OnscreenText import OnscreenText
 from direct.showbase.ShowBase import ShowBase
-from direct.actor.Actor import Actor
 from panda3d.core import *
+from datetime import date
+import os, timeit, json, _temp.randomizer  # to change with lps
+import pandas as pd
 
 
 def displayText(pos, msg, parent, align):
@@ -50,7 +48,6 @@ def drawGrid(render):
     for i in range(11):
         grid.moveTo(-5.5, -5.5+i, 0)
         grid.drawTo(5.5, -5.5+i, 0)
-
     grid.moveTo(-5.5, -5.5, 0)
     grid.drawTo(5.5, -5.5, 0)
     grid.drawTo(5.5, 5.5, 0)
@@ -67,7 +64,6 @@ def drawGrid(render):
     grid.drawTo(5.5, 5.5, 4)
     grid.moveTo(-5.5, 5.5, 0)
     grid.drawTo(-5.5, 5.5, 4)
-
     grid.setThickness(1)
     grid_node = NodePath(grid.create())
     grid_node.reparentTo(render)
@@ -77,34 +73,33 @@ def drawGrid(render):
 class Locus3D(ShowBase):
     def __init__(self, quantity):
         ShowBase.__init__(self)
+        window = WindowProperties()
+        window.setTitle("Locus 3D visualization")
+        base.win.requestProperties(window)
+        self.accept("f1", self._startLogger)
+        self.accept("f2", self._stopLogger)
+        taskMgr.add(self.__main, 'mainTask')
+
+        displayText((0.08, -0.04 - 0.04), "[F1]: Start logger", base.a2dTopLeft, TextNode.ALeft)
+        displayText((0.08, -0.11 - 0.04), "[F2]: Stop logger", base.a2dTopLeft, TextNode.ALeft)
+        self.lg_text = displayText((0.08, 0.09), "", base.a2dBottomLeft, TextNode.ALeft)
+        base.setBackgroundColor(0, 0, 0)
+        drawAxis(self.render)
+        drawGrid(self.render)
 
         self.lps = _temp.randomizer.Randomizer()
+        self.drones = []
+        for i in range(quantity):
+            drone = loader.loadModel("colorable_sphere")
+            drone.setScale(0.22, 0.22, 0.22)
+            drone.setColor(0.9, 0.035*i, 0.085*i, 1)  # can be recolored
+            drone.reparentTo(self.render)
+            self.drones.append(drone)
+
         self.logging = False
         self.timer = timeit.default_timer()
         self.date = date.today()
         self.df0 = pd.DataFrame()
-
-        window = WindowProperties()
-        window.setTitle("Locus 3D visualization")
-        base.win.requestProperties(window)
-        displayText((0.08, -0.04 - 0.04), "[F1]: Start logger", base.a2dTopLeft, TextNode.ALeft)
-        displayText((0.08, -0.11 - 0.04), "[F2]: Stop logger", base.a2dTopLeft, TextNode.ALeft)
-        self.lg_text = displayText((0.08, 0.09), "", base.a2dBottomLeft, TextNode.ALeft)
-        drawAxis(self.render)
-        drawGrid(self.render)
-        base.setBackgroundColor(0, 0, 0)
-
-        self.drones = []
-        for i in range(quantity):
-            drone = Actor("colorable_sphere")
-            drone.setScale(0.22, 0.22, 0.22)
-            drone.setColor(0.4, 0.05*i, 0.05*i, 1)  # can be recolored
-            drone.reparentTo(self.render)
-            self.drones.append(drone)
-
-        self.accept("f1", self._startLogger)
-        self.accept("f2", self._stopLogger)
-        taskMgr.add(self.__main, 'mainTask')
 
     def __main(self, task):
         pos = self.lps.get_pos()
@@ -140,5 +135,5 @@ class Locus3D(ShowBase):
 
 
 if __name__ == '__main__':
-    visualization = Locus3D(16)
+    visualization = Locus3D(16)  # 16 drones for example
     visualization.run()
