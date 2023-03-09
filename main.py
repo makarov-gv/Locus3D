@@ -1,18 +1,11 @@
-import os
 from datetime import date
-import timeit
+import os, timeit, json
 import pandas as pd
-# import lps
-import json
-import _temp.randomizer
+import _temp.randomizer  # to change with lps
 from direct.gui.OnscreenText import OnscreenText
 from direct.showbase.ShowBase import ShowBase
 from direct.actor.Actor import Actor
 from panda3d.core import *
-
-QUANTITY = 16
-# TODO: окошко с координатами каждого дрона, дрон - сфера изменяемого цвета d/r 10 см
-# 11x11x4, drone diameter = 0.1
 
 
 def displayText(pos, msg, parent, align):
@@ -82,48 +75,44 @@ def drawGrid(render):
 
 
 class Locus3D(ShowBase):
-    def __init__(self):
+    def __init__(self, quantity):
         ShowBase.__init__(self)
+
         self.lps = _temp.randomizer.Randomizer()
         self.logging = False
-        self.capturing = False
+        self.timer = timeit.default_timer()
+        self.date = date.today()
+        self.df0 = pd.DataFrame()
 
         window = WindowProperties()
         window.setTitle("Locus 3D visualization")
         base.win.requestProperties(window)
-        displayText((0.08, -0.04 - 0.04), "[F1]: Start/stop logger", base.a2dTopLeft, TextNode.ALeft)
-        displayText((0.08, -0.11 - 0.04), "[F2]: Start/stop video capturer", base.a2dTopLeft, TextNode.ALeft)
-        self.lg_text = displayText((0.08, 0.16), "", base.a2dBottomLeft, TextNode.ALeft)
-        self.cp_text = displayText((0.08, 0.09), "", base.a2dBottomLeft, TextNode.ALeft)
+        displayText((0.08, -0.04 - 0.04), "[F1]: Start logger", base.a2dTopLeft, TextNode.ALeft)
+        displayText((0.08, -0.11 - 0.04), "[F2]: Stop logger", base.a2dTopLeft, TextNode.ALeft)
+        self.lg_text = displayText((0.08, 0.09), "", base.a2dBottomLeft, TextNode.ALeft)
         drawAxis(self.render)
         drawGrid(self.render)
         base.setBackgroundColor(0, 0, 0)
 
         self.drones = []
-        for i in range(QUANTITY):
-            drone = Actor("models/jack")
-            drone.setScale(0.1, 0.1, 0.1)
+        for i in range(quantity):
+            drone = Actor("models/sphere")
+            drone.setScale(0.22, 0.22, 0.22)
+            drone.setColor(0.4, 0.05*i, 0.05*i, 1)  # can be recolored
             drone.reparentTo(self.render)
             self.drones.append(drone)
 
-        self.accept("f1", self.logger)
-        # self.accept("f2", self.capturer)
+        self.accept("f1", self._startLogger)
+        self.accept("f2", self._stopLogger)
+        taskMgr.add(self.__main, 'mainTask')
 
-        self.timer = timeit.default_timer()
-        self.df0 = pd.DataFrame()
-        self.date = date.today()
-        taskMgr.add(self._main, 'mainTask')
-
-    def _main(self, task):
-
+    def __main(self, task):
         pos = self.lps.get_pos()
         if pos is not None:
-            # pos_compressed = ''
-            for i in range(QUANTITY):
+            for i in range(len(pos)):
                 self.drones[i].setX(pos[i][0]/100)
                 self.drones[i].setY(pos[i][1]/100)
                 self.drones[i].setZ(pos[i][2]/100)
-                # pos_compressed += str(pos[i])
             if self.logging:
                 data = [pos, timeit.default_timer() - self.timer]
                 df = pd.DataFrame(
@@ -132,11 +121,13 @@ class Locus3D(ShowBase):
                 self.df0 = pd.concat([self.df0, df])
         return task.cont
 
-    def logger(self):
+    def _startLogger(self):
         if not self.logging:
             self.lg_text.appendText("Logging...")
             self.logging = True
-        else:
+
+    def _stopLogger(self):
+        if self.logging:
             self.lg_text.clearText()
             self.logging = False
             result = self.df0.to_json(orient="records")
@@ -144,10 +135,10 @@ class Locus3D(ShowBase):
             os.chdir('logs')
             with open(str(self.date)+'.json', 'w') as f:
                 json.dump(parsed, f, indent=2)
-                print('saved')
+                print('Log has been saved as {}.json'.format(self.date))
             os.chdir('..')
 
 
 if __name__ == '__main__':
-    visualization = Locus3D()
+    visualization = Locus3D(16)
     visualization.run()
