@@ -13,7 +13,7 @@ def displayText(pos, msg, parent, align):
 
 
 def drawAxis(render):
-    x_axis = y_axis = z_axis = LineSegs("lines")
+    x_axis = y_axis = z_axis = LineSegs('lines')
 
     x_axis.moveTo(0, 0, 0)
     x_axis.drawTo(1, 0, 0)
@@ -38,7 +38,7 @@ def drawAxis(render):
 
 
 def drawGrid(render):
-    grid = LineSegs("lines")
+    grid = LineSegs('lines')
 
     grid.moveTo(-5.5, -5.5, 0)
     for i in range(11):
@@ -74,14 +74,14 @@ class Locus3D(ShowBase):
     def __init__(self, quantity):
         ShowBase.__init__(self)
         window = WindowProperties()
-        window.setTitle("Locus 3D visualization")
+        window.setTitle('Locus 3D visualization')
         base.win.requestProperties(window)
-        self.accept("f1", self._startLogger)
-        self.accept("f2", self._stopLogger)
+        self.accept('f1', self._startLogger)
+        self.accept('f2', self._stopLogger)
         taskMgr.add(self.__main, 'mainTask')
 
-        displayText((0.08, -0.04 - 0.04), "[F1]: Start logger", base.a2dTopLeft, TextNode.ALeft)
-        displayText((0.08, -0.11 - 0.04), "[F2]: Stop logger", base.a2dTopLeft, TextNode.ALeft)
+        displayText((0.08, -0.04 - 0.04), '[F1]: Start logger', base.a2dTopLeft, TextNode.ALeft)
+        displayText((0.08, -0.11 - 0.04), '[F2]: Stop logger', base.a2dTopLeft, TextNode.ALeft)
         self.lg_text = displayText((0.08, 0.09), "", base.a2dBottomLeft, TextNode.ALeft)
         base.setBackgroundColor(0, 0, 0)
         drawAxis(self.render)
@@ -90,7 +90,7 @@ class Locus3D(ShowBase):
         self.lps = _temp.randomizer.Randomizer()
         self.drones = []
         for i in range(quantity):
-            drone = loader.loadModel("colorable_sphere")
+            drone = loader.loadModel('colorable_sphere')
             drone.setScale(0.22, 0.22, 0.22)
             drone.setColor(0.9, 0.035*i, 0.085*i, 1)  # can be recolored
             drone.reparentTo(self.render)
@@ -118,14 +118,14 @@ class Locus3D(ShowBase):
 
     def _startLogger(self):
         if not self.logging:
-            self.lg_text.appendText("Logging...")
+            self.lg_text.appendText('Logging...')
             self.logging = True
 
     def _stopLogger(self):
         if self.logging:
             self.lg_text.clearText()
             self.logging = False
-            result = self.df0.to_json(orient="records")
+            result = self.df0.to_json(orient='records')
             parsed = json.loads(result)
             os.chdir('logs')
             with open(str(self.date)+'.json', 'w') as f:
@@ -135,5 +135,5 @@ class Locus3D(ShowBase):
 
 
 if __name__ == '__main__':
-    visualization = Locus3D(16)  # 16 drones for example
+    visualization = Locus3D(16)  # 16 drones
     visualization.run()
