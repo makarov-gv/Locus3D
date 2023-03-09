@@ -4,16 +4,14 @@ import timeit
 import pandas as pd
 # import lps
 import json
-import randomizer
+import _temp.randomizer
 from direct.gui.OnscreenText import OnscreenText
 from direct.showbase.ShowBase import ShowBase
 from direct.actor.Actor import Actor
 from panda3d.core import *
-from screen_recorder_sdk import screen_recorder
 
 QUANTITY = 16
-# TODO: окошко с координатами каждого дрона, дрон - сфера изменяемого цвета d/r 10 см, функция записи шоу,
-# TODO: привязка функций записи и запуска логгера к клавишам
+# TODO: окошко с координатами каждого дрона, дрон - сфера изменяемого цвета d/r 10 см
 # 11x11x4, drone diameter = 0.1
 
 
@@ -86,7 +84,7 @@ def drawGrid(render):
 class Locus3D(ShowBase):
     def __init__(self):
         ShowBase.__init__(self)
-        self.lps = randomizer.Randomizer()
+        self.lps = _temp.randomizer.Randomizer()
         self.logging = False
         self.capturing = False
 
@@ -109,7 +107,7 @@ class Locus3D(ShowBase):
             self.drones.append(drone)
 
         self.accept("f1", self.logger)
-        self.accept("f2", self.capturer)
+        # self.accept("f2", self.capturer)
 
         self.timer = timeit.default_timer()
         self.df0 = pd.DataFrame()
@@ -120,14 +118,14 @@ class Locus3D(ShowBase):
 
         pos = self.lps.get_pos()
         if pos is not None:
-            pos_compressed = ''
+            # pos_compressed = ''
             for i in range(QUANTITY):
                 self.drones[i].setX(pos[i][0]/100)
                 self.drones[i].setY(pos[i][1]/100)
                 self.drones[i].setZ(pos[i][2]/100)
-                pos_compressed += str(pos[i])
+                # pos_compressed += str(pos[i])
             if self.logging:
-                data = [pos_compressed, timeit.default_timer() - self.timer]
+                data = [pos, timeit.default_timer() - self.timer]
                 df = pd.DataFrame(
                     [data], columns=['Positions, meters', 'Time passed, seconds']
                 )
@@ -141,26 +139,13 @@ class Locus3D(ShowBase):
         else:
             self.lg_text.clearText()
             self.logging = False
-            result = self.df0.to_json(orient='records')
+            result = self.df0.to_json(orient="records")
             parsed = json.loads(result)
             os.chdir('logs')
             with open(str(self.date)+'.json', 'w') as f:
                 json.dump(parsed, f, indent=2)
                 print('saved')
             os.chdir('..')
-
-    def capturer(self):
-        if not self.capturing:
-            try:
-                screen_recorder.start_video_recording('test.mp4', 30, 800000, True)
-                self.cp_text.appendText("Capturing...")
-                self.capturing = True
-            except:
-                print('For now only Windows is supported for capturing')
-        else:
-            screen_recorder.stop_video_recording()
-            self.cp_text.clearText()
-            self.capturing = False
 
 
 if __name__ == '__main__':
