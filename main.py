@@ -109,7 +109,7 @@ class Locus3D(ShowBase):
                 self.drones[i].setY(pos[i][1]/100)
                 self.drones[i].setZ(pos[i][2]/100)
             if self.logging:
-                data = [pos, timeit.default_timer() - self.timer]
+                data = [list(pos), timeit.default_timer() - self.timer]
                 df = pd.DataFrame(
                     [data], columns=['Positions, meters', 'Time passed, seconds']
                 )
