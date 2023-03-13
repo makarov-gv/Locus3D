@@ -3,19 +3,30 @@ from direct.showbase.ShowBase import ShowBase
 from panda3d.core import *
 from datetime import datetime
 import pandas as pd
-import os
 import timeit
 import json
-import _temp.randomizer  # to change with lps
+import _temp.randomizer  # to be replaced with lps
 
 
 def displayText(pos, msg, parent, align):
+    """
+    Display text label in given position containing given message with alignment parameters
+    :param pos: label position
+    :param msg: text to be displayed
+    :param parent: alignment parent
+    :param align: alignment state
+    :return: OnscreenText class object (text label itself)
+    """
     return OnscreenText(text=msg, style=1, fg=(1, 1, 1, 1), scale=.05,
                         shadow=(0, 0, 0, 1), parent=parent,
                         pos=pos, align=align)
 
 
 def drawAxis(render):
+    """
+    Create axis lines at the center of the environment. X-axis is red, Y-axis is green and Z-axis is blue
+    :param render: ShowBase class method to display lines
+    """
     x_axis = y_axis = z_axis = LineSegs('lines')
 
     x_axis.moveTo(0, 0, 0)
@@ -41,6 +52,11 @@ def drawAxis(render):
 
 
 def drawGrid(render):
+    """
+    Create grid lines at the center of the environment. Grid is 11x11x4 meters. Floor contains 1x1 meter squares for
+    proper visualization understanding
+    :param render: ShowBase class method to display lines
+    """
     grid = LineSegs('lines')
 
     grid.moveTo(-5.5, -5.5, 0)
@@ -79,9 +95,9 @@ class Locus3D(ShowBase):
         window = WindowProperties()
         window.setTitle('Locus 3D visualization')
         base.win.requestProperties(window)
-        self.accept('f1', self._startLogger)
-        self.accept('f2', self._stopLogger)
-        taskMgr.add(self.__main, 'mainTask')
+        self.accept('f1', self._startLogger)  # assign _startLogger method to F1 keyboard button
+        self.accept('f2', self._stopLogger)  # assign _stopLogger method to F2 keyboard button
+        taskMgr.add(self.__main, 'mainTask')  # start looped task (__main function)
 
         displayText((0.08, -0.04 - 0.04), '[F1]: Start logger', base.a2dTopLeft, TextNode.ALeft)
         displayText((0.08, -0.11 - 0.04), '[F2]: Stop logger and save log', base.a2dTopLeft, TextNode.ALeft)
@@ -92,13 +108,13 @@ class Locus3D(ShowBase):
         drawGrid(self.render)
 
         self.logging = False
-        self.df0 = pd.DataFrame()
-        self.lps = _temp.randomizer.Randomizer()
-        self.drones = []
+        self.df0 = pd.DataFrame()  # dataframe to store positions and time during logging
+        self.lps = _temp.randomizer.Randomizer()  # to be replaced with lps
+        self.drones = []  # list of drones objects containing model, color and position parameters
         for i in range(quantity):
-            drone = loader.loadModel('colorable_sphere')
-            drone.setScale(0.22, 0.22, 0.22)
-            drone.setColor(0.9, 0.035*i, 0.085*i, 1)  # can be recolored
+            drone = loader.loadModel('colorable_sphere')  # using colorable_sphere model for each drone
+            drone.setScale(0.22, 0.22, 0.22)  # scale it to 0,1 diameter size (approximately)
+            drone.setColor(0.9, 0.035*i, 0.085*i, 1)  # temporary, to display colors
             drone.reparentTo(self.render)
             self.drones.append(drone)
 
@@ -106,23 +122,25 @@ class Locus3D(ShowBase):
         pos = self.lps.get_pos()
         if pos is not None:
             for i in range(len(pos)):
+                # for each position in pos list move drones from drones list
                 self.drones[i].setX(pos[i][0]/100)
                 self.drones[i].setY(pos[i][1]/100)
                 self.drones[i].setZ(pos[i][2]/100)
             if self.logging:
+                # if logging is True, log positions and amount of time passed
                 data = [list(pos), timeit.default_timer() - self.timer]
                 time = 'Time passed: '+str(round(data[1], 4))+" seconds"
                 self.timer_text.setText(time)
                 df = pd.DataFrame(
                     [data], columns=['Positions, meters', 'Time passed, seconds']
                 )
-                self.df0 = pd.concat([self.df0, df])
+                self.df0 = pd.concat([self.df0, df])  # concatenate positions and time to the main dataframe
         return task.cont
 
     def _startLogger(self):
         if not self.logging:
             self.logger_text.setText('Logging...')
-            self.timer = timeit.default_timer()
+            self.timer = timeit.default_timer()  # timer initialization
             self.logging = True
 
     def _stopLogger(self):
@@ -130,14 +148,12 @@ class Locus3D(ShowBase):
             self.logging = False
             result = self.df0.to_json(orient='records')
             parsed = json.loads(result)
-            os.chdir('logs')
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M')
-            with open(str(current_time)+'.json', 'w') as f:
-                json.dump(parsed, f, indent=2)
-            os.chdir('..')
+            current_time = datetime.now().strftime('%d-%m-%Y_%H:%M')  # e.g. filename will be 13-03-2023_18:48.json
+            with open('logs/'+str(current_time)+'.json', 'w') as f:
+                json.dump(parsed, f, indent=2)  # save .json log file
             self.logger_text.setText('Saved as {}.json'.format(current_time))
 
 
 if __name__ == '__main__':
-    visualization = Locus3D(16)  # 16 drones
+    visualization = Locus3D(16)  # 16 drones used in the example, should be predefined
     visualization.run()

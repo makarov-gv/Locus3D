@@ -3,17 +3,29 @@ from direct.showbase.ShowBase import ShowBase
 from panda3d.core import *
 import tkinter as tk
 from tkinter.filedialog import askopenfilename
-import _temp.randomizer  # to change with lps
+import _temp.randomizer  # to be replaced with lps
 import pandas as pd
 
 
 def displayText(pos, msg, parent, align):
+    """
+        Display text label in given position containing given message with alignment parameters
+        :param pos: label position
+        :param msg: text to be displayed
+        :param parent: alignment parent
+        :param align: alignment state
+        :return: OnscreenText class object (text label itself)
+        """
     return OnscreenText(text=msg, style=1, fg=(1, 1, 1, 1), scale=.05,
                         shadow=(0, 0, 0, 1), parent=parent,
                         pos=pos, align=align)
 
 
 def drawAxis(render):
+    """
+    Create axis lines at the center of the environment. X-axis is red, Y-axis is green and Z-axis is blue
+    :param render: ShowBase class method to display lines
+    """
     x_axis = y_axis = z_axis = LineSegs('lines')
 
     x_axis.moveTo(0, 0, 0)
@@ -39,6 +51,11 @@ def drawAxis(render):
 
 
 def drawGrid(render):
+    """
+    Create grid lines at the center of the environment. Grid is 11x11x4 meters. Floor contains 1x1 meter squares for
+    proper visualization understanding
+    :param render: ShowBase class method to display lines
+    """
     grid = LineSegs('lines')
 
     grid.moveTo(-5.5, -5.5, 0)
@@ -77,15 +94,16 @@ class LogPlayer(ShowBase):
         window = WindowProperties()
         window.setTitle('Locus 3D log player')
         base.win.requestProperties(window)
-        self.accept('f1', self._interact)
-        self.accept('f2', self._restart)
-        taskMgr.add(self.__main, 'mainTask')
+        self.accept('f1', self._interact)  # assign _interact method to F1 keyboard button
+        self.accept('f2', self._restart)  # assign _restart method to F2 keyboard button
+        taskMgr.add(self.__main, 'mainTask')  # start looped task (__main function)
 
+        # tkinter is used to get log filename, but other functions are locked by withdraw method
         tk.Tk().withdraw()
         fn = askopenfilename()
         log = pd.read_json(fn)
         log.head()
-        self.iterator = 0
+        self.iterator = 0  # to define log iteration order
         self.positions = list(log['Positions, meters'])
         self.times = list(log['Time passed, seconds'])
         self.playing = False
@@ -99,12 +117,12 @@ class LogPlayer(ShowBase):
         drawAxis(self.render)
         drawGrid(self.render)
 
-        self.lps = _temp.randomizer.Randomizer()
-        self.drones = []
+        self.lps = _temp.randomizer.Randomizer()  # to be replaced with lps
+        self.drones = []  # list of drones objects containing model, color and position parameters
         for i in range(len(self.positions[0])):
-            drone = loader.loadModel('colorable_sphere')
-            drone.setScale(0.22, 0.22, 0.22)
-            drone.setColor(0.9, 0.035*i, 0.085*i, 1)  # can be recolored
+            drone = loader.loadModel('colorable_sphere')  # using colorable_sphere model for each drone
+            drone.setScale(0.22, 0.22, 0.22)  # scale it to 0,1 diameter size (approximately)
+            drone.setColor(0.9, 0.035*i, 0.085*i, 1)  # temporary, to display colors
             drone.reparentTo(self.render)
             self.drones.append(drone)
 
@@ -115,6 +133,7 @@ class LogPlayer(ShowBase):
             if self.playing:
                 pos = self.positions[self.iterator]
                 for i in range(len(pos)):
+                    # for each position in pos list move drones from drones list
                     self.drones[i].setX(pos[i][0]/100)
                     self.drones[i].setY(pos[i][1]/100)
                     self.drones[i].setZ(pos[i][2]/100)
