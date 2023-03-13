@@ -6,6 +6,7 @@ from tkinter.filedialog import askopenfilename
 import _temp.randomizer  # to change with lps
 import pandas as pd
 
+
 def displayText(pos, msg, parent, align):
     return OnscreenText(text=msg, style=1, fg=(1, 1, 1, 1), scale=.05,
                         shadow=(0, 0, 0, 1), parent=parent,
@@ -86,12 +87,14 @@ class LogPlayer(ShowBase):
         log.head()
         self.iterator = 0
         self.positions = list(log['Positions, meters'])
+        self.times = list(log['Time passed, seconds'])
         self.playing = False
 
-        displayText((0.08, -0.04 - 0.04), 'Log {} is ready to be played'.format(fn), base.a2dTopLeft, TextNode.ALeft)
+        displayText((0.08, -0.04 - 0.04), 'Log {} loaded'.format(fn), base.a2dTopLeft, TextNode.ALeft)
         displayText((0.08, -0.11 - 0.04), '[F1]: Play/pause player', base.a2dTopLeft, TextNode.ALeft)
         displayText((0.08, -0.18 - 0.04), '[F2]: Restart player', base.a2dTopLeft, TextNode.ALeft)
-        self.text = displayText((0.08, 0.09), '', base.a2dBottomLeft, TextNode.ALeft)
+        self.status_text = displayText((0.08, 0.09), '', base.a2dBottomLeft, TextNode.ALeft)
+        self.timer_text = displayText((0.08, 0.09), '', base.a2dBottomCenter, TextNode.ACenter)
         base.setBackgroundColor(0, 0, 0)
         drawAxis(self.render)
         drawGrid(self.render)
@@ -107,7 +110,7 @@ class LogPlayer(ShowBase):
 
     def __main(self, task):
         if self.iterator >= len(self.positions):
-            self.text.setText('Finished')
+            self.status_text.setText('Finished')
         if self.iterator < len(self.positions):
             if self.playing:
                 pos = self.positions[self.iterator]
@@ -115,22 +118,24 @@ class LogPlayer(ShowBase):
                     self.drones[i].setX(pos[i][0]/100)
                     self.drones[i].setY(pos[i][1]/100)
                     self.drones[i].setZ(pos[i][2]/100)
+                time = 'Time passed: '+str(round(self.times[self.iterator], 4))+" seconds"
+                self.timer_text.setText(time)
                 self.iterator += 1
             return task.cont
 
     def _interact(self):
         if not self.playing:
             self.playing = True
-            self.text.setText('Playing...')
+            self.status_text.setText('Playing...')
         else:
             self.playing = False
-            self.text.setText('Paused')
+            self.status_text.setText('Paused')
 
     def _restart(self):
         self.playing = True
         self.iterator = 0
         taskMgr.add(self.__main, 'mainTask')
-        self.text.setText('Restarted, playing...')
+        self.status_text.setText('Restarted, playing...')
 
 
 if __name__ == '__main__':

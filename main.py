@@ -1,9 +1,12 @@
 from direct.gui.OnscreenText import OnscreenText
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import *
-from datetime import date
-import os, timeit, json, _temp.randomizer  # to change with lps
+from datetime import datetime
 import pandas as pd
+import os
+import timeit
+import json
+import _temp.randomizer  # to change with lps
 
 
 def displayText(pos, msg, parent, align):
@@ -81,12 +84,15 @@ class Locus3D(ShowBase):
         taskMgr.add(self.__main, 'mainTask')
 
         displayText((0.08, -0.04 - 0.04), '[F1]: Start logger', base.a2dTopLeft, TextNode.ALeft)
-        displayText((0.08, -0.11 - 0.04), '[F2]: Stop logger', base.a2dTopLeft, TextNode.ALeft)
-        self.lg_text = displayText((0.08, 0.09), "", base.a2dBottomLeft, TextNode.ALeft)
+        displayText((0.08, -0.11 - 0.04), '[F2]: Stop logger and save log', base.a2dTopLeft, TextNode.ALeft)
+        self.logger_text = displayText((0.08, 0.09), "", base.a2dBottomLeft, TextNode.ALeft)
+        self.timer_text = displayText((0.08, 0.09), '', base.a2dBottomCenter, TextNode.ACenter)
         base.setBackgroundColor(0, 0, 0)
         drawAxis(self.render)
         drawGrid(self.render)
 
+        self.logging = False
+        self.df0 = pd.DataFrame()
         self.lps = _temp.randomizer.Randomizer()
         self.drones = []
         for i in range(quantity):
@@ -95,11 +101,6 @@ class Locus3D(ShowBase):
             drone.setColor(0.9, 0.035*i, 0.085*i, 1)  # can be recolored
             drone.reparentTo(self.render)
             self.drones.append(drone)
-
-        self.logging = False
-        self.timer = timeit.default_timer()
-        self.date = date.today()
-        self.df0 = pd.DataFrame()
 
     def __main(self, task):
         pos = self.lps.get_pos()
@@ -110,6 +111,8 @@ class Locus3D(ShowBase):
                 self.drones[i].setZ(pos[i][2]/100)
             if self.logging:
                 data = [list(pos), timeit.default_timer() - self.timer]
+                time = 'Time passed: '+str(round(data[1], 4))+" seconds"
+                self.timer_text.setText(time)
                 df = pd.DataFrame(
                     [data], columns=['Positions, meters', 'Time passed, seconds']
                 )
@@ -118,20 +121,21 @@ class Locus3D(ShowBase):
 
     def _startLogger(self):
         if not self.logging:
-            self.lg_text.appendText('Logging...')
+            self.logger_text.setText('Logging...')
+            self.timer = timeit.default_timer()
             self.logging = True
 
     def _stopLogger(self):
         if self.logging:
-            self.lg_text.clearText()
             self.logging = False
             result = self.df0.to_json(orient='records')
             parsed = json.loads(result)
             os.chdir('logs')
-            with open(str(self.date)+'.json', 'w') as f:
+            current_time = datetime.now().strftime('%Y-%m-%d %H:%M')
+            with open(str(current_time)+'.json', 'w') as f:
                 json.dump(parsed, f, indent=2)
-                print('Log has been saved as {}.json'.format(self.date))
             os.chdir('..')
+            self.logger_text.setText('Saved as {}.json'.format(current_time))
 
 
 if __name__ == '__main__':
