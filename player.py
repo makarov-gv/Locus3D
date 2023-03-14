@@ -113,7 +113,7 @@ class LogPlayer(ShowBase):
         displayText((0.08, -0.04 - 0.04), 'Log {} loaded'.format(fn), base.a2dTopLeft, TextNode.ALeft)
         displayText((0.08, -0.11 - 0.04), '[F1]: Play/pause player', base.a2dTopLeft, TextNode.ALeft)
         displayText((0.08, -0.18 - 0.04), '[F2]: Restart player', base.a2dTopLeft, TextNode.ALeft)
-        displayText((0.08, -0.25 - 0.04), '[F3]: Show/hide (x, y, z) labels', base.a2dTopLeft, TextNode.ALeft)
+        displayText((0.08, -0.25 - 0.04), '[F3]: Show/hide "x, y, z" labels', base.a2dTopLeft, TextNode.ALeft)
         self.status_text = displayText((0.08, 0.09), '', base.a2dBottomLeft, TextNode.ALeft)
         self.timer_text = displayText((0.08, 0.09), '', base.a2dBottomCenter, TextNode.ACenter)
         base.setBackgroundColor(0, 0, 0)
@@ -152,7 +152,7 @@ class LogPlayer(ShowBase):
 
                     if self.debugging:
                         node = self.dronesText[i].node()
-                        node.setText(str(pos[i]))
+                        node.setText(str(pos[i][0]/100)+', '+str(pos[i][1]/100)+', '+str(pos[i][2]/100))
                         self.dronesText[i].setX(pos[i][0] / 100 + 0.2)
                         self.dronesText[i].setY(pos[i][1] / 100)
                         self.dronesText[i].setZ(pos[i][2] / 100 + 0.2)
