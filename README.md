@@ -2,7 +2,7 @@ Before working make sure to install all the modules listed in **requirements.txt
 
 **Python 3.11 is not supported by some of the modules yet.**
 
-* **main.py** - main file to run the 3D visualization app. LMB to move the camera, RMB to zoom camera in and out, MMB to rotate the camera view. Press F1 to start logging the visualization, this process can't be paused though. Press F2 to stop logger and save the log file as *date_time*.json in parsed format. Press F3 to show or hide coordinates labels to debug drones positions.
+* **main.py** - main file to run the 3D visualization app. LMB to move the camera, RMB to zoom camera in and out, MMB to rotate the camera view. Press F1 to start logging the visualization, this process can't be paused though. Press F2 to stop logger and save the log file as *date_time*.json in parsed format. Press F3 to show or hide drone number and coordinates label to debug drones positions.
 
 * **player.py** - file to run the 3D log player app that can visualize drones movements stored within the chosen log. Can be paused and restarted with F1 and F2. Similiarly to main.py, F3 turns debugger on/off.
 
@@ -17,7 +17,7 @@ Before working make sure to install all the modules listed in **requirements.txt
 
 **Python 3.11 ещё не поддерживается некоторыми из модулей на данный момент.**
 
-* **main.py** - основной файл для запуска приложения 3D визуализации. Левая кнопка мыши передвигает камеру, правая кнопка мыши приближает и отдаляет изображение, колесико мыши вращает камеру. Нажмите F1 чтобы запустить логирование визуализации, но учитывайте, что этот процесс не может быть поставлен на паузу. Нажмите F2 чтобы остановить логер и сохранить файл с названием *дата_время*.json в запаршенном формате. Нажмите F3 чтобы отобразить или спрятать координаты дронов для дебага.
+* **main.py** - основной файл для запуска приложения 3D визуализации. Левая кнопка мыши передвигает камеру, правая кнопка мыши приближает и отдаляет изображение, колесико мыши вращает камеру. Нажмите F1 чтобы запустить логирование визуализации, но учитывайте, что этот процесс не может быть поставлен на паузу. Нажмите F2 чтобы остановить логер и сохранить файл с названием *дата_время*.json в запаршенном формате. Нажмите F3 чтобы отобразить или спрятать номер и координаты дронов для дебага.
 
 * **player.py** - файл для запуска плеера логов, который может визуализировать передвижения дронов записанные в выбранном логе. Можно поставить на паузу и перезапустить с помощью клавиш F1 и F2. Аналогично main.py, F3 включает или выключает дебаггер.
 
