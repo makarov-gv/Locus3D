@@ -97,26 +97,38 @@ class Locus3D(ShowBase):
         base.win.requestProperties(window)
         self.accept('f1', self._startLogger)  # assign _startLogger method to F1 keyboard button
         self.accept('f2', self._stopLogger)  # assign _stopLogger method to F2 keyboard button
+        self.accept('f3', self._debugger)  # assign debugger method to F3 keyboard button
         taskMgr.add(self.__main, 'mainTask')  # start looped task (__main function)
 
         displayText((0.08, -0.04 - 0.04), '[F1]: Start logger', base.a2dTopLeft, TextNode.ALeft)
-        displayText((0.08, -0.11 - 0.04), '[F2]: Stop logger and save log', base.a2dTopLeft, TextNode.ALeft)
-        self.logger_text = displayText((0.08, 0.09), "", base.a2dBottomLeft, TextNode.ALeft)
-        self.timer_text = displayText((0.08, 0.09), '', base.a2dBottomCenter, TextNode.ACenter)
+        displayText((0.08, -0.11 - 0.04), '[F2]: Stop logger, save log', base.a2dTopLeft, TextNode.ALeft)
+        displayText((0.08, -0.18 - 0.04), '[F3]: Show/hide (x, y, z) labels', base.a2dTopLeft, TextNode.ALeft)
+        self.loggerText = displayText((0.08, 0.09), "", base.a2dBottomLeft, TextNode.ALeft)
+        self.timerText = displayText((0.08, 0.09), '', base.a2dBottomCenter, TextNode.ACenter)
         base.setBackgroundColor(0, 0, 0)
         drawAxis(self.render)
         drawGrid(self.render)
 
         self.logging = False
+        self.debugging = False
         self.df0 = pd.DataFrame()  # dataframe to store positions and time during logging
         self.lps = _temp.randomizer.Randomizer()  # to be replaced with lps
         self.drones = []  # list of drones objects containing model, color and position parameters
+        self.dronesText = []
+
         for i in range(quantity):
             drone = loader.loadModel('colorable_sphere')  # using colorable_sphere model for each drone
             drone.setScale(0.22, 0.22, 0.22)  # scale it to 0,1 diameter size (approximately)
             drone.setColor(0.9, 0.035*i, 0.085*i, 1)  # temporary, to display colors
             drone.reparentTo(self.render)
             self.drones.append(drone)
+
+            node = TextNode('xyz')
+            node.setText('')
+            droneText = self.aspect2d.attachNewNode(node)
+            droneText.setScale(0.2)
+            droneText.reparentTo(self.render)
+            self.dronesText.append(droneText)
 
     def __main(self, task):
         pos = self.lps.get_pos()
@@ -126,11 +138,19 @@ class Locus3D(ShowBase):
                 self.drones[i].setX(pos[i][0]/100)
                 self.drones[i].setY(pos[i][1]/100)
                 self.drones[i].setZ(pos[i][2]/100)
+
+                if self.debugging:
+                    node = self.dronesText[i].node()
+                    node.setText(str(pos[i]))
+                    self.dronesText[i].setX(pos[i][0]/100+0.2)
+                    self.dronesText[i].setY(pos[i][1]/100)
+                    self.dronesText[i].setZ(pos[i][2]/100+0.2)
+                    self.dronesText[i].setBillboardAxis()
             if self.logging:
                 # if logging is True, log positions and amount of time passed
                 data = [list(pos), timeit.default_timer() - self.timer]
                 time = 'Time passed: '+str(round(data[1], 4))+" seconds"
-                self.timer_text.setText(time)
+                self.timerText.setText(time)
                 df = pd.DataFrame(
                     [data], columns=['Positions, meters', 'Time passed, seconds']
                 )
@@ -139,7 +159,7 @@ class Locus3D(ShowBase):
 
     def _startLogger(self):
         if not self.logging:
-            self.logger_text.setText('Logging...')
+            self.loggerText.setText('Logging...')
             self.timer = timeit.default_timer()  # timer initialization
             self.logging = True
 
@@ -151,7 +171,16 @@ class Locus3D(ShowBase):
             current_time = datetime.now().strftime('%d-%m-%Y_%H-%M')  # e.g. filename will be 13-03-2023_18-48.json
             with open('logs/'+str(current_time)+'.json', 'w') as f:
                 json.dump(parsed, f, indent=2)  # save .json log file
-            self.logger_text.setText('Saved as {}.json'.format(current_time))
+            self.loggerText.setText('Saved as {}.json'.format(current_time))
+
+    def _debugger(self):
+        if not self.debugging:
+            self.debugging = True
+        else:
+            for i in range(len(self.dronesText)):
+                node = self.dronesText[i].node()
+                node.setText('')
+            self.debugging = False
 
 
 if __name__ == '__main__':

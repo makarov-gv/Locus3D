@@ -96,6 +96,7 @@ class LogPlayer(ShowBase):
         base.win.requestProperties(window)
         self.accept('f1', self._interact)  # assign _interact method to F1 keyboard button
         self.accept('f2', self._restart)  # assign _restart method to F2 keyboard button
+        self.accept('f3', self._debugger)  # assign _debugger method to F3 keyboard button
         taskMgr.add(self.__main, 'mainTask')  # start looped task (__main function)
 
         # tkinter is used to get log filename, but other functions are locked by withdraw method
@@ -107,10 +108,12 @@ class LogPlayer(ShowBase):
         self.positions = list(log['Positions, meters'])
         self.times = list(log['Time passed, seconds'])
         self.playing = False
+        self.debugging = False
 
         displayText((0.08, -0.04 - 0.04), 'Log {} loaded'.format(fn), base.a2dTopLeft, TextNode.ALeft)
         displayText((0.08, -0.11 - 0.04), '[F1]: Play/pause player', base.a2dTopLeft, TextNode.ALeft)
         displayText((0.08, -0.18 - 0.04), '[F2]: Restart player', base.a2dTopLeft, TextNode.ALeft)
+        displayText((0.08, -0.25 - 0.04), '[F3]: Show/hide (x, y, z) labels', base.a2dTopLeft, TextNode.ALeft)
         self.status_text = displayText((0.08, 0.09), '', base.a2dBottomLeft, TextNode.ALeft)
         self.timer_text = displayText((0.08, 0.09), '', base.a2dBottomCenter, TextNode.ACenter)
         base.setBackgroundColor(0, 0, 0)
@@ -119,12 +122,21 @@ class LogPlayer(ShowBase):
 
         self.lps = _temp.randomizer.Randomizer()  # to be replaced with lps
         self.drones = []  # list of drones objects containing model, color and position parameters
+        self.dronesText = []
+
         for i in range(len(self.positions[0])):
             drone = loader.loadModel('colorable_sphere')  # using colorable_sphere model for each drone
             drone.setScale(0.22, 0.22, 0.22)  # scale it to 0,1 diameter size (approximately)
             drone.setColor(0.9, 0.035*i, 0.085*i, 1)  # temporary, to display colors
             drone.reparentTo(self.render)
             self.drones.append(drone)
+
+            node = TextNode('xyz')
+            node.setText('')
+            droneText = self.aspect2d.attachNewNode(node)
+            droneText.setScale(0.2)
+            droneText.reparentTo(self.render)
+            self.dronesText.append(droneText)
 
     def __main(self, task):
         if self.iterator >= len(self.positions):
@@ -137,6 +149,14 @@ class LogPlayer(ShowBase):
                     self.drones[i].setX(pos[i][0]/100)
                     self.drones[i].setY(pos[i][1]/100)
                     self.drones[i].setZ(pos[i][2]/100)
+
+                    if self.debugging:
+                        node = self.dronesText[i].node()
+                        node.setText(str(pos[i]))
+                        self.dronesText[i].setX(pos[i][0] / 100 + 0.2)
+                        self.dronesText[i].setY(pos[i][1] / 100)
+                        self.dronesText[i].setZ(pos[i][2] / 100 + 0.2)
+                        self.dronesText[i].setBillboardAxis()
                 time = 'Time passed: '+str(round(self.times[self.iterator], 4))+" seconds"
                 self.timer_text.setText(time)
                 self.iterator += 1
@@ -155,6 +175,15 @@ class LogPlayer(ShowBase):
         self.iterator = 0
         taskMgr.add(self.__main, 'mainTask')
         self.status_text.setText('Restarted, playing...')
+
+    def _debugger(self):
+        if not self.debugging:
+            self.debugging = True
+        else:
+            for i in range(len(self.dronesText)):
+                node = self.dronesText[i].node()
+                node.setText('')
+            self.debugging = False
 
 
 if __name__ == '__main__':
