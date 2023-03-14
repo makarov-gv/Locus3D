@@ -102,7 +102,7 @@ class Locus3D(ShowBase):
 
         displayText((0.08, -0.04 - 0.04), '[F1]: Start logger', base.a2dTopLeft, TextNode.ALeft)
         displayText((0.08, -0.11 - 0.04), '[F2]: Stop logger, save log', base.a2dTopLeft, TextNode.ALeft)
-        displayText((0.08, -0.18 - 0.04), '[F3]: Show/hide "x, y, z" labels', base.a2dTopLeft, TextNode.ALeft)
+        displayText((0.08, -0.18 - 0.04), '[F3]: Show/hide debug labels', base.a2dTopLeft, TextNode.ALeft)
         self.loggerText = displayText((0.08, 0.09), "", base.a2dBottomLeft, TextNode.ALeft)
         self.timerText = displayText((0.08, 0.09), '', base.a2dBottomCenter, TextNode.ACenter)
         base.setBackgroundColor(0, 0, 0)
@@ -141,7 +141,7 @@ class Locus3D(ShowBase):
 
                 if self.debugging:
                     node = self.dronesText[i].node()
-                    node.setText(str(pos[i][0]/100)+', '+str(pos[i][1]/100)+', '+str(pos[i][2]/100))
+                    node.setText('#{}: '.format(i)+str(pos[i][0]/100)+', '+str(pos[i][1]/100)+', '+str(pos[i][2]/100))
                     self.dronesText[i].setX(pos[i][0]/100+0.2)
                     self.dronesText[i].setY(pos[i][1]/100)
                     self.dronesText[i].setZ(pos[i][2]/100+0.2)
