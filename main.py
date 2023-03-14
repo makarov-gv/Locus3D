@@ -148,7 +148,7 @@ class Locus3D(ShowBase):
             self.logging = False
             result = self.df0.to_json(orient='records')
             parsed = json.loads(result)
-            current_time = datetime.now().strftime('%d-%m-%Y_%H:%M')  # e.g. filename will be 13-03-2023_18:48.json
+            current_time = datetime.now().strftime('%d-%m-%Y_%H-%M')  # e.g. filename will be 13-03-2023_18-48.json
             with open('logs/'+str(current_time)+'.json', 'w') as f:
                 json.dump(parsed, f, indent=2)  # save .json log file
             self.logger_text.setText('Saved as {}.json'.format(current_time))
