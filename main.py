@@ -145,7 +145,7 @@ class Locus3D(ShowBase):
                     self.dronesText[i].setX(pos[i][0]/100+0.2)
                     self.dronesText[i].setY(pos[i][1]/100)
                     self.dronesText[i].setZ(pos[i][2]/100+0.2)
-                    self.dronesText[i].setBillboardAxis()
+                    self.dronesText[i].setBillboardPointEye()
             if self.logging:
                 # if logging is True, log positions and amount of time passed
                 data = [list(pos), timeit.default_timer() - self.timer]
