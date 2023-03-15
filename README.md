@@ -1,6 +1,3 @@
-![image](https://im4.ezgif.com/tmp/ezgif-4-fce0dbcef0.gif)
-
-
 Before working make sure to install all the modules listed in **requirements.txt**. If an error occures during the automatic IDE configuration, it may make sense to install latest versions of modules aviable on your Python interpretator (3.10 was used in that project).
 
 **Python 3.11 is not supported by some of the modules yet.**
@@ -29,3 +26,5 @@ Before working make sure to install all the modules listed in **requirements.txt
 * **colorable_sphere.egg** - окрашиваемая модель сферы в нативном формате Panda3D для использования в скрипте.
 
 * **logs** - папка для хранения .json логов.
+
+![image](https://im4.ezgif.com/tmp/ezgif-4-fce0dbcef0.gif)
