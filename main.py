@@ -2,10 +2,11 @@ from direct.gui.OnscreenText import OnscreenText
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import *
 from datetime import datetime
-import pandas as pd
 import timeit
-import json
-import _temp.randomizer  # to be replaced with lps
+import gs_lps
+
+MAX_OBJECTS = 30
+MAX_MISMATCHES = 150
 
 
 def displayText(pos, msg, parent, align):
@@ -90,14 +91,16 @@ def drawGrid(render):
 
 
 class Locus3D(ShowBase):
-    def __init__(self, quantity):
+    def __init__(self):
         ShowBase.__init__(self)
         window = WindowProperties()
         window.setTitle('Locus 3D visualization')
         base.win.requestProperties(window)
+        base.win.setCloseRequestEvent('window_exit')
         self.accept('f1', self._startLogger)  # assign _startLogger method to F1 keyboard button
         self.accept('f2', self._stopLogger)  # assign _stopLogger method to F2 keyboard button
         self.accept('f3', self._debugger)  # assign debugger method to F3 keyboard button
+        self.accept('window_exit', self._exit)
         taskMgr.add(self.__main, 'mainTask')  # start looped task (__main function)
 
         displayText((0.08, -0.04 - 0.04), '[F1]: Start logger', base.a2dTopLeft, TextNode.ALeft)
@@ -109,80 +112,121 @@ class Locus3D(ShowBase):
         drawAxis(self.render)
         drawGrid(self.render)
 
+        self.lps = gs_lps.us_nav(serial_port="/dev/ttyUSB0")  # to be replaced with lps
+        self.lps.start()
+
         self.logging = False
         self.debugging = False
-        self.df0 = pd.DataFrame()  # dataframe to store positions and time during logging
-        self.lps = _temp.randomizer.Randomizer()  # to be replaced with lps
+
         self.drones = []  # list of drones objects containing model, color and position parameters
         self.dronesText = []
+        self.addr = []
+        self.pos = []
+        self.beacons = []
+        self.mismatches = []
 
-        for i in range(quantity):
+        for i in range(MAX_OBJECTS):
             drone = loader.loadModel('colorable_sphere')  # using colorable_sphere model for each drone
             drone.setScale(0.22, 0.22, 0.22)  # scale it to 0,1 diameter size (approximately)
-            drone.setColor(0.9, 0.035*i, 0.085*i, 1)  # temporary, to display colors
+            drone.setColor(1.0-0.14*i, 0.0+0.14*i, 0.4+0.7*i, 1)  # temporary, to display colors
             drone.reparentTo(self.render)
+            drone.hide()
             self.drones.append(drone)
 
             node = TextNode('xyz')
             node.setText('')
             droneText = self.aspect2d.attachNewNode(node)
-            droneText.setScale(0.2)
+            droneText.setScale(0.22)
             droneText.reparentTo(self.render)
             self.dronesText.append(droneText)
 
     def __main(self, task):
-        pos = self.lps.get_pos()
-        if pos is not None:
-            for i in range(len(pos)):
-                # for each position in pos list move drones from drones list
-                self.drones[i].setX(pos[i][0]/100)
-                self.drones[i].setY(pos[i][1]/100)
-                self.drones[i].setZ(pos[i][2]/100)
+        if self.lps.telemetry_received() is not None:
+            addr = self.lps.get_addr()
+            pos, b_beacons = self.lps.get_position()
+            beacons = list('____')
+            if b_beacons & 1 != 0:
+                beacons[0] = '1'
+            if b_beacons & 2 != 0:
+                beacons[1] = '2'
+            if b_beacons & 3 != 0:
+                beacons[2] = '3'
+            if b_beacons & 4 != 0:
+                beacons[3] = '4'
 
-                if self.debugging:
-                    node = self.dronesText[i].node()
-                    node.setText('#{}: '.format(i)+str(pos[i][0]/100)+', '+str(pos[i][1]/100)+', '+str(pos[i][2]/100))
-                    self.dronesText[i].setX(pos[i][0]/100+0.2)
-                    self.dronesText[i].setY(pos[i][1]/100)
-                    self.dronesText[i].setZ(pos[i][2]/100+0.2)
-                    self.dronesText[i].setBillboardPointEye()
             if self.logging:
                 # if logging is True, log positions and amount of time passed
-                data = [list(pos), timeit.default_timer() - self.timer]
-                time = 'Time passed: '+str(round(data[1], 4))+" seconds"
+                time = '%.4f' % (round((timeit.default_timer() - self.timer), 4))
+                data = time+', '+str(self.lps.get_telemetry())[1:-1]
                 self.timerText.setText(time)
-                df = pd.DataFrame(
-                    [data], columns=['Positions, meters', 'Time passed, seconds']
-                )
-                self.df0 = pd.concat([self.df0, df])  # concatenate positions and time to the main dataframe
+                self.log.write(data+'\n')
+                # self.log.write(str(self.lps.get_info())+'\n')
+                # self.log.write(str(self.lps.get_rawAccel())+'\n')
+
+            if addr not in self.addr:
+                self.addr.append(addr)
+                self.pos.append(pos)
+                self.beacons.append(''.join(beacons))
+                self.mismatches.append(0)
+            if addr in self.addr:
+                i = self.addr.index(addr)
+                self.pos[i] = pos
+                self.beacons[i] = ''.join(beacons)
+
+            for i in range(len(self.addr)):
+                if addr != self.addr[i]:
+                    self.mismatches[i] += 1
+                else:
+                    self.mismatches[i] = 0
+
+                # for each position in pos list move drones from drones list
+                if self.mismatches[i] > MAX_MISMATCHES:
+                    self.drones[i].hide()
+                    node = self.dronesText[i].node()
+                    node.setText('')
+                else:
+                    self.drones[i].show()
+                    self.drones[i].setX(self.pos[i][0])
+                    self.drones[i].setY(self.pos[i][1])
+                    self.drones[i].setZ(self.pos[i][2])
+
+                    if self.debugging:
+                        node = self.dronesText[i].node()
+                        node.setText('%d\n%.2f, %.2f, %.2f\n%s' % (self.addr[i], self.pos[i][0], self.pos[i][1],
+                                                                   self.pos[i][2], self.beacons[i]))
+                        self.dronesText[i].setX(self.pos[i][0]+0.2)
+                        self.dronesText[i].setY(self.pos[i][1])
+                        self.dronesText[i].setZ(self.pos[i][2]+0.2)
+                        self.dronesText[i].setBillboardPointEye()
         return task.cont
 
     def _startLogger(self):
         if not self.logging:
+            self.logging = True
             self.loggerText.setText('Logging...')
             self.timer = timeit.default_timer()  # timer initialization
-            self.logging = True
+            self.logName = datetime.now().strftime('%d-%m-%Y_%H-%M')  # e.g. filename will be 13-03-2023_18-48.txt
+            self.log = open('logs/'+str(self.logName)+'.txt', 'w')
 
     def _stopLogger(self):
         if self.logging:
             self.logging = False
-            result = self.df0.to_json(orient='records')
-            parsed = json.loads(result)
-            current_time = datetime.now().strftime('%d-%m-%Y_%H-%M')  # e.g. filename will be 13-03-2023_18-48.json
-            with open('logs/'+str(current_time)+'.json', 'w') as f:
-                json.dump(parsed, f, indent=2)  # save .json log file
-            self.loggerText.setText('Saved as {}.json'.format(current_time))
+            self.loggerText.setText('Saved as {}.txt'.format(self.logName))
 
     def _debugger(self):
         if not self.debugging:
             self.debugging = True
         else:
+            self.debugging = False
             for i in range(len(self.dronesText)):
                 node = self.dronesText[i].node()
                 node.setText('')
-            self.debugging = False
+
+    def _exit(self):
+        self.lps.stop()
+        exit(0)
 
 
 if __name__ == '__main__':
-    visualization = Locus3D(16)  # 16 drones used in the example, should be predefined
+    visualization = Locus3D()
     visualization.run()

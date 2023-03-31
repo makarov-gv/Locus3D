@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import time
-
 import serial
 import struct
 from threading import Thread
 import math
+from random import randint
 
 
 class crc8(object):
@@ -50,7 +50,7 @@ class crc8(object):
 
 
 class us_nav(Thread):
-    def __init__(self, serial_port='/dev/ttyUSB0', debug=False):
+    def __init__(self, serial_port="/dev/ttyUSB0", debug=False):
         Thread.__init__(self)
         self.debug = debug
         if not self.debug:
@@ -62,34 +62,67 @@ class us_nav(Thread):
             self.ser.bytesize = serial.EIGHTBITS
 
         self._run = True
-
-        self.__TELEMETRY_PACKET = '<I3i3hHBBBx'
-        self.__SYS_STATUS_PACKET = '<HBBII'
-        self.__STRENGTH_PACKET = '<hhhh'
-        self.__ANGLE_SCALE = 360 / 2**11
-
         self.idx = 0
         self.size = 0
         self.buffer = bytearray(260)
         self.crc8 = crc8().crc8
 
+        self.__TELEMETRY_PACKET = '<BBBBI3i3hHBBBx'
+        """
+        uint8_t start B
+        uint8_t size B
+        uint8_t addr B
+        uint8_t event B
+        uint32_t orientations I
+        int32_t pos[3] 3i
+        int16_t vel[3] 3h
+        uint16_t voltage H
+        uint8_t beacons B
+        uint8_t status B
+        uint8_t posError B
+        NUL byte x
+        """
+        self.__SYS_STATUS_PACKET = '<HBBII'
+        self.__INFO_PACKET = '<HHHBBIH'
+        self.__RAW_ACCEL_PACKET = '<3h'
+        self.__STRENGTH_PACKET = '<hhhh'
+        self.__EV_TELEMETRY = 0x02
+        self.__EV_SYS_STATUS = 0x08
+        self.__EV_INFO = 0x18
+        self.__EV_RAW_ACCEL = 0x1D
+        self.__EV_STRENGTH = 0x33
+        self.__ANGLE_SCALE = 360 / 2 ** 11
+
+        self.tel_received = False
+        self.h_start = None
+        self.h_size = None
+        self.h_addr = None
+        self.h_event = None
         self.roll = None
         self.pitch = None
         self.yaw = None
-
         self.x = None
         self.y = None
         self.z = None
-
         self.vX = None
         self.vY = None
         self.vZ = None
-
+        self.voltage = None
         self.beacons = None
+        self.status = None
+        self.pos_error = None
+
+        self.hwld = None
+        self.fwType = None
+        self.fwVersion = None
+        self.protoMinor = None
+        self.protoMajor = None
+        self.commit = None
+        self.commitCount = None
+
+        self.rawAccel = None
 
         self.levels = None
-
-        self.status = None
         if not self.debug:
             try:
                 self.ser.open()
@@ -103,7 +136,6 @@ class us_nav(Thread):
             self.ser.flushOutput()
             while self._run:
                 try:
-                    # print(self.ser.inWaiting())
                     data_len = self.ser.inWaiting()
                     if data_len > 0:
                         data = self.ser.read(data_len)
@@ -127,12 +159,13 @@ class us_nav(Thread):
                                 if data[i] == self.crc8(self.buffer[1:self.size]):
                                     self.parse_packet(self.buffer[:self.size])
                                 else:
-                                    print("crc error size = %d\n" % self.size)
+                                    crc_packet = self.buffer[:self.size]
+                                    print("crc error: id %d, size %d" % (crc_packet[3], self.size))
                                 self.idx = 0
                                 i += 1
 
                 except Exception as e:
-                    print("Error occured:" + str(e))
+                    print("Error occurred:" + str(e))
         else:
             while self._run:
                 self.parse_packet(None)
@@ -149,39 +182,76 @@ class us_nav(Thread):
             self.levels = [randint(2, 2500), randint(2, 2500), 300, 1000]
             self.beacons = 0b1010
             return
-        if packet[3] == 0x02 and len(packet) == 32:#'<I3i3hHBBBx'
-            orientation, self.x, self.y, self.z, self.vX, self.vY, self.vZ, \
-                voltage, beacons, status, pos_error = struct.unpack_from(self.__TELEMETRY_PACKET, packet, 4)
-            self.roll = (orientation & 0b11111111111) * math.pi / 1024 #* self.__ANGLE_SCALE #11 bit
-            self.pitch = (orientation >> 11 & 0b1111111111) * math.pi / 1024 #* self.__ANGLE_SCALE #10 bit
-            self.yaw = (orientation >> 21 & 0b11111111111) * math.pi / 1024 #* self.__ANGLE_SCALE#11 bit
-            self.beacons = beacons
-        elif packet[3] == 0x08 and len(packet) == 16:
+        # if packet[3] == self.__EV_TELEMETRY and len(packet) == 32: #'<BBBBI3i3hHBBBx'
+        if packet[3] == self.__EV_TELEMETRY:  #'<BBBBI3i3hHBBBx'
+            # print(''.join('{:02x}'.format(x) for x in packet))
+            self.tel_received = True
+            self.h_start, self.h_size, self.h_addr, self.h_event, orientation, self.x, self.y, self.z, self.vX, \
+                self.vY, self.vZ, self.voltage, self.beacons, self.status, \
+                self.pos_error = struct.unpack_from(self.__TELEMETRY_PACKET, packet, 0)
+            # print("addr {}: ".format(self.h_addr), len(packet))
+            self.roll = round(((orientation & 0b11111111111) * math.pi / 1024), 3)  #* self.__ANGLE_SCALE #11 bit
+            self.pitch = round(((orientation >> 11 & 0b1111111111) * math.pi / 1024), 3)  #* self.__ANGLE_SCALE #10 bit
+            self.yaw = round(((orientation >> 21 & 0b11111111111) * math.pi / 102), 3)  #* self.__ANGLE_SCALE#11 bit
+        elif packet[3] == self.__EV_SYS_STATUS and len(packet) == 16:
             ident, cfg_status, log_status, logger_capacity, log_size = \
                 struct.unpack_from(self.__SYS_STATUS_PACKET, packet, 4)
-            #print(ident, cfg_status, log_status, logger_capacity, log_size)
-        elif packet[3] == 0x33 and len(packet) == 12:
+            # print(ident, cfg_status, log_status, logger_capacity, log_size)
+        elif packet[3] == self.__EV_INFO:  # LEN(PACKET)=... '<HHH2BBBIH'
+            self.hwld, self.fwType, self.fwVersion, self.protoMinor, self.protoMajor, self.commit, \
+                self.commitCount = struct.unpack_from(self.__INFO_PACKET, packet, 4)
+        elif packet[3] == self.__EV_RAW_ACCEL:  # LEN(PACKET)=... '<3h'
+            raw_a, raw_b, raw_c = struct.unpack_from(self.__RAW_ACCEL_PACKET, packet, 4)
+            self.rawAccel = (raw_a, raw_b, raw_c)
+        elif packet[3] == self.__EV_STRENGTH and len(packet) == 12:
             level1, level2, level3, level4 = struct.unpack_from(self.__STRENGTH_PACKET, packet, 4)
             self.levels = [level1, level2, level3, level4]
         else:
-
-            #print('unknown packet... ' + str(hex(packet[3])))
+            # print('unknown packet... ' + str(hex(packet[3])))
             pass
 
+    def telemetry_received(self):
+        if self.tel_received and self.h_addr is not None:
+            self.tel_received = False
+            return True
+        else:
+            return None
+
+    def get_telemetry(self):
+        return self.h_start, self.h_size, self.h_addr, self.h_event, self.roll, self.pitch, self.yaw, \
+            self.x/1000.0, self.y/1000.0, self.z/1000.0, self.vX, self.vY, self.vZ, self.voltage/1000.0, \
+            self.beacons, self.status, self.pos_error
+
+    def get_info(self):
+        return self.hwld, self.fwType, self.fwVersion, self.protoMinor, self.protoMajor, self.commit, \
+                self.commitCount
+
+    def get_rawAccel(self):
+        return self.rawAccel
+
+    def get_addr(self):
+        if self.h_addr is not None:
+            return self.h_addr
+        else:
+            return None
+
     def get_angles(self):
-        if(self.roll is not None and  self.pitch is not None and self.yaw is not None):
+        if self.roll is not None and  self.pitch is not None and self.yaw is not None:
             return [math.degrees(self.roll), math.degrees(self.pitch), math.degrees(self.yaw)]
-        else: return None
+        else:
+            return None
 
     def get_position(self):
-        if(self.x is not None and  self.y is not None and self.z is not None and self.beacons is not None):
-            return [self.x/1000.0, self.y/1000.0, self.z/1000.0, self.beacons]
-        else: return None
+        if self.x is not None and  self.y is not None and self.z is not None and self.beacons is not None:
+            return [self.x/1000.0, self.y/1000.0, self.z/1000.0], self.beacons
+        else:
+            return [0.0, 0.0, 0.0]
 
     def get_strength(self):
-        if(self.levels is not None):
+        if self.levels is not None:
             return self.levels
-        else: return None
+        else:
+            return None
 
     def get_vel(self):
         return [self.vX, self.vY, self.vZ]

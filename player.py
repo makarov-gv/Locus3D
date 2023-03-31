@@ -3,8 +3,9 @@ from direct.showbase.ShowBase import ShowBase
 from panda3d.core import *
 import tkinter as tk
 from tkinter.filedialog import askopenfilename
-import _temp.randomizer  # to be replaced with lps
-import pandas as pd
+import timeit
+
+MAX_MISMATCHES = 1000
 
 
 def displayText(pos, msg, parent, align):
@@ -102,12 +103,15 @@ class LogPlayer(ShowBase):
         # tkinter is used to get log filename, but other functions are locked by withdraw method
         tk.Tk().withdraw()
         fn = askopenfilename()
-        log = pd.read_json(fn)
-        log.head()
-        self.iterator = 0  # to define log iteration order
-        self.positions = list(log['Positions, meters'])
-        self.times = list(log['Time passed, seconds'])
+        self.log = []
+        with open(fn, 'r') as f:
+            for line in f:
+                string = line.strip()
+                self.log.append(string.split(', '))
+
         self.playing = False
+        self.timerStop = 0.0
+        self.iterator = 0  # to define log iteration order
         self.debugging = False
 
         displayText((0.08, -0.04 - 0.04), 'Log {} loaded'.format(fn), base.a2dTopLeft, TextNode.ALeft)
@@ -120,59 +124,109 @@ class LogPlayer(ShowBase):
         drawAxis(self.render)
         drawGrid(self.render)
 
-        self.lps = _temp.randomizer.Randomizer()  # to be replaced with lps
         self.drones = []  # list of drones objects containing model, color and position parameters
         self.dronesText = []
+        self.addr = []
+        self.pos = []
+        self.beacons = []
+        self.mismatches = []
 
-        for i in range(len(self.positions[0])):
+        addrNum = []
+        for i in range(len(self.log)):
+            if self.log[i][3] not in addrNum:
+                addrNum.append(self.log[i][3])
+
+        for i in range(len(addrNum)):
             drone = loader.loadModel('colorable_sphere')  # using colorable_sphere model for each drone
             drone.setScale(0.22, 0.22, 0.22)  # scale it to 0,1 diameter size (approximately)
-            drone.setColor(0.9, 0.035*i, 0.085*i, 1)  # temporary, to display colors
+            drone.setColor(1.0-0.14*i, 0.0+0.14*i, 0.4+0.7*i, 1)  # temporary, to display colors
             drone.reparentTo(self.render)
+            drone.hide()
             self.drones.append(drone)
 
             node = TextNode('xyz')
             node.setText('')
             droneText = self.aspect2d.attachNewNode(node)
-            droneText.setScale(0.2)
+            droneText.setScale(0.22)
             droneText.reparentTo(self.render)
             self.dronesText.append(droneText)
 
     def __main(self, task):
-        if self.iterator >= len(self.positions):
+        if self.iterator >= len(self.log):
             self.status_text.setText('Finished')
-        if self.iterator < len(self.positions):
+        elif self.iterator < len(self.log):
             if self.playing:
-                pos = self.positions[self.iterator]
-                for i in range(len(pos)):
-                    # for each position in pos list move drones from drones list
-                    self.drones[i].setX(pos[i][0]/100)
-                    self.drones[i].setY(pos[i][1]/100)
-                    self.drones[i].setZ(pos[i][2]/100)
+                logTime = float(self.log[self.iterator][0])
+                if logTime < (timeit.default_timer() - self.timer):
+                    timeText = 'Real time ' + '%.4f' % round((timeit.default_timer()-self.timer), 4) + ' / Log time: '\
+                               + '%.4f' % round(logTime, 4)
+                    self.timer_text.setText(timeText)
+                    addr = int(self.log[self.iterator][3])
+                    pos = (float(self.log[self.iterator][8]), float(self.log[self.iterator][9]),
+                           float(self.log[self.iterator][10]))
+                    b_beacons = int(self.log[self.iterator][15])
+                    beacons = list('____')
+                    if b_beacons & 1 != 0:
+                        beacons[0] = '1'
+                    if b_beacons & 2 != 0:
+                        beacons[1] = '2'
+                    if b_beacons & 3 != 0:
+                        beacons[2] = '3'
+                    if b_beacons & 4 != 0:
+                        beacons[3] = '4'
 
-                    if self.debugging:
-                        node = self.dronesText[i].node()
-                        node.setText('#{}: '.format(i)+str(pos[i][0]/100)+', '+str(pos[i][1]/100)+', '+str(pos[i][2]/100))
-                        self.dronesText[i].setX(pos[i][0] / 100 + 0.2)
-                        self.dronesText[i].setY(pos[i][1] / 100)
-                        self.dronesText[i].setZ(pos[i][2] / 100 + 0.2)
-                        self.dronesText[i].setBillboardPointEye()
-                time = 'Time passed: '+str(round(self.times[self.iterator], 4))+" seconds"
-                self.timer_text.setText(time)
-                self.iterator += 1
+                    if addr not in self.addr:
+                        self.addr.append(addr)
+                        self.pos.append(pos)
+                        self.beacons.append(''.join(beacons))
+                        self.mismatches.append(0)
+                    if addr in self.addr:
+                        i = self.addr.index(addr)
+                        self.pos[i] = pos
+                        self.beacons[i] = ''.join(beacons)
+
+                    for i in range(len(self.addr)):
+                        if addr != self.addr[i]:
+                            self.mismatches[i] += 1
+                        else:
+                            self.mismatches[i] = 0
+
+                        if self.mismatches[i] > MAX_MISMATCHES:
+                            self.drones[i].hide()
+                            node = self.dronesText[i].node()
+                            node.setText('')
+                        else:
+                            # for each position in pos list move drones from drones list
+                            self.drones[i].show()
+                            self.drones[i].setX(self.pos[i][0])
+                            self.drones[i].setY(self.pos[i][1])
+                            self.drones[i].setZ(self.pos[i][2])
+
+                            if self.debugging:
+                                node = self.dronesText[i].node()
+                                node.setText('%d\n%.2f, %.2f, %.2f\n%s' % (self.addr[i], self.pos[i][0], self.pos[i][1],
+                                                                           self.pos[i][2], self.beacons[i]))
+                                self.dronesText[i].setX(self.pos[i][0] + 0.2)
+                                self.dronesText[i].setY(self.pos[i][1])
+                                self.dronesText[i].setZ(self.pos[i][2] + 0.2)
+                                self.dronesText[i].setBillboardPointEye()
+                    self.iterator += 1
             return task.cont
 
     def _interact(self):
         if not self.playing:
             self.playing = True
             self.status_text.setText('Playing...')
+            self.timer = timeit.default_timer()-self.timerStop
         else:
             self.playing = False
+            self.timerStop = timeit.default_timer()-self.timer
             self.status_text.setText('Paused')
 
     def _restart(self):
         self.playing = True
         self.iterator = 0
+        self.timer = timeit.default_timer()
         taskMgr.add(self.__main, 'mainTask')
         self.status_text.setText('Restarted, playing...')
 
@@ -180,10 +234,10 @@ class LogPlayer(ShowBase):
         if not self.debugging:
             self.debugging = True
         else:
+            self.debugging = False
             for i in range(len(self.dronesText)):
                 node = self.dronesText[i].node()
                 node.setText('')
-            self.debugging = False
 
 
 if __name__ == '__main__':
