@@ -30,3 +30,5 @@ Before working make sure to install all the modules listed in **requirements.txt
 * **colorable_sphere.egg** - окрашиваемая модель сферы в нативном формате Panda3D для использования в скрипте.
 
 * **logs** - папка для хранения .json логов.
+
+![image](https://im4.ezgif.com/tmp/ezgif-4-fce0dbcef0.gif)
