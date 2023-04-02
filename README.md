@@ -1,7 +1,3 @@
-time, Header start, Header size, Header addr, Header event, roll, pitch, yaw, x, y, z, vel X, vel Y, vel Z, voltage, beacons, status, pos_error
-(hwId, fwType, fwVersion, protoMinor, protoMajor, commit, commitCount)
-(accel1, accel2, accel3)
-
 Before working make sure to install all the modules listed in **requirements.txt**. If an error occures during the automatic IDE configuration, it may make sense to install latest versions of modules aviable on your Python interpretator (3.10 was used in that project).
 
 **Python 3.11 is not supported by some of the modules yet.**
@@ -15,6 +11,16 @@ Before working make sure to install all the modules listed in **requirements.txt
 * **colorable_sphere.egg** - colorable sphere model in Panda3D native format to be used in the script.
 
 * **logs** - folder for .json logs.
+
+Log contains next Locus packet data by default: 
+
+*time, start, size, addr, event, roll, pitch, yaw, x, y, z, velX, velY, velZ, voltage, beacons, status, pos_error*
+
+You can extend log by uncommenting relevant lines. Extended log can't be played in **player.py**, but you'll get access next Locus packet data:
+
+*(hwId, fwType, fwVersion, protoMinor, protoMajor, commit, commitCount)*
+
+*(accel1, accel2, accel3)*
 ##
 
 Перед началом работы необходимо установить требуемые модули согласно **requirements.txt**. В случае возникновения ошибки автоматической настройки среды разработки имеет смысл установить самые актуальные версии модулей под вашу версию интерпретатора Python (т.е. если она не соответствует 3.10).
@@ -31,4 +37,14 @@ Before working make sure to install all the modules listed in **requirements.txt
 
 * **logs** - папка для хранения .json логов.
 
-![image](https://im4.ezgif.com/tmp/ezgif-4-fce0dbcef0.gif)
+Без изменений лог содержит следующие данные из принимаемых пакетов: 
+
+*time, start, size, addr, event, roll, pitch, yaw, x, y, z, velX, velY, velZ, voltage, beacons, status, pos_error*
+
+Лог можно расширить раскомментируя соответствующие строки. Расширенный лог не может быть проигран в **player.py**, но вы сможете получить следующие данные из Локуса:
+
+*(hwId, fwType, fwVersion, protoMinor, protoMajor, commit, commitCount)*
+
+*(accel1, accel2, accel3)*
+
+![image](https://cdn.discordapp.com/attachments/564479124924530718/1092015105379672134/Animation.gif)
