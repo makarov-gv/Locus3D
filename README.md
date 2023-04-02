@@ -18,8 +18,7 @@ Log contains next Locus packet data by default:
 
 You can extend log by uncommenting relevant lines. Extended log can't be played in **player.py**, but you'll get access next Locus packet data:
 
-*(hwId, fwType, fwVersion, protoMinor, protoMajor, commit, commitCount)*
-
+*(hwId, fwType, fwVersion, protoMinor, protoMajor, commit, commitCount)* <br />
 *(accel1, accel2, accel3)*
 ##
 
@@ -43,8 +42,7 @@ You can extend log by uncommenting relevant lines. Extended log can't be played 
 
 Лог можно расширить раскомментируя соответствующие строки. Расширенный лог не может быть проигран в **player.py**, но вы сможете получить следующие данные из Локуса:
 
-*(hwId, fwType, fwVersion, protoMinor, protoMajor, commit, commitCount)*
-
+*(hwId, fwType, fwVersion, protoMinor, protoMajor, commit, commitCount)* <br />
 *(accel1, accel2, accel3)*
 
 ![image](https://cdn.discordapp.com/attachments/564479124924530718/1092015105379672134/Animation.gif)
