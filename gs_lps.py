@@ -67,21 +67,21 @@ class us_nav(Thread):
         self.buffer = bytearray(260)
         self.crc8 = crc8().crc8
 
+        """
+        __TELEMETRY_PACKET structure: uint8_t start B
+                                      uint8_t size B
+                                      uint8_t addr B
+                                      uint8_t event B
+                                      uint32_t orientations I
+                                      int32_t pos[3] 3i
+                                      int16_t vel[3] 3h
+                                      uint16_t voltage H
+                                      uint8_t beacons B
+                                      uint8_t status B
+                                      uint8_t posError B
+                                      NUL byte x
+        """
         self.__TELEMETRY_PACKET = '<BBBBI3i3hHBBBx'
-        """
-        uint8_t start B
-        uint8_t size B
-        uint8_t addr B
-        uint8_t event B
-        uint32_t orientations I
-        int32_t pos[3] 3i
-        int16_t vel[3] 3h
-        uint16_t voltage H
-        uint8_t beacons B
-        uint8_t status B
-        uint8_t posError B
-        NUL byte x
-        """
         self.__SYS_STATUS_PACKET = '<HBBII'
         self.__INFO_PACKET = '<HHHBBIH'
         self.__RAW_ACCEL_PACKET = '<3h'
@@ -182,25 +182,24 @@ class us_nav(Thread):
             self.levels = [randint(2, 2500), randint(2, 2500), 300, 1000]
             self.beacons = 0b1010
             return
-        # if packet[3] == self.__EV_TELEMETRY and len(packet) == 32: #'<BBBBI3i3hHBBBx'
-        if packet[3] == self.__EV_TELEMETRY:  #'<BBBBI3i3hHBBBx'
+        if packet[3] == self.__EV_TELEMETRY:  # '<BBBBI3i3hHBBBx', no packet length check?
             # print(''.join('{:02x}'.format(x) for x in packet))
             self.tel_received = True
             self.h_start, self.h_size, self.h_addr, self.h_event, orientation, self.x, self.y, self.z, self.vX, \
                 self.vY, self.vZ, self.voltage, self.beacons, self.status, \
                 self.pos_error = struct.unpack_from(self.__TELEMETRY_PACKET, packet, 0)
             # print("addr {}: ".format(self.h_addr), len(packet))
-            self.roll = round(((orientation & 0b11111111111) * math.pi / 1024), 3)  #* self.__ANGLE_SCALE #11 bit
-            self.pitch = round(((orientation >> 11 & 0b1111111111) * math.pi / 1024), 3)  #* self.__ANGLE_SCALE #10 bit
-            self.yaw = round(((orientation >> 21 & 0b11111111111) * math.pi / 102), 3)  #* self.__ANGLE_SCALE#11 bit
+            self.roll = round(((orientation & 0b11111111111) * math.pi / 1024), 3)  # * self.__ANGLE_SCALE #11 bit
+            self.pitch = round(((orientation >> 11 & 0b1111111111) * math.pi / 1024), 3)  # * self.__ANGLE_SCALE #10 bit
+            self.yaw = round(((orientation >> 21 & 0b11111111111) * math.pi / 102), 3)  # * self.__ANGLE_SCALE #11 bit
         elif packet[3] == self.__EV_SYS_STATUS and len(packet) == 16:
             ident, cfg_status, log_status, logger_capacity, log_size = \
                 struct.unpack_from(self.__SYS_STATUS_PACKET, packet, 4)
             # print(ident, cfg_status, log_status, logger_capacity, log_size)
-        elif packet[3] == self.__EV_INFO:  # LEN(PACKET)=... '<HHH2BBBIH'
+        elif packet[3] == self.__EV_INFO:  # '<HHH2BBBIH', no packet length check?
             self.hwld, self.fwType, self.fwVersion, self.protoMinor, self.protoMajor, self.commit, \
                 self.commitCount = struct.unpack_from(self.__INFO_PACKET, packet, 4)
-        elif packet[3] == self.__EV_RAW_ACCEL:  # LEN(PACKET)=... '<3h'
+        elif packet[3] == self.__EV_RAW_ACCEL:  # '<3h', no packet length check?
             raw_a, raw_b, raw_c = struct.unpack_from(self.__RAW_ACCEL_PACKET, packet, 4)
             self.rawAccel = (raw_a, raw_b, raw_c)
         elif packet[3] == self.__EV_STRENGTH and len(packet) == 12:

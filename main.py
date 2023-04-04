@@ -6,7 +6,7 @@ import timeit
 import gs_lps
 
 MAX_OBJECTS = 30  # amount of sphere models to spawn for further assigning to Locus objects
-MAX_MISMATCHES = 150  # maximum amount of iterations before Locus object will disappear from visualization
+MAX_MISMATCHES = 150  # maximum amount of missed iterations before Locus object will disappear from visualization
 
 
 def displayText(pos, msg, parent, align):
@@ -127,8 +127,8 @@ class Locus3D(ShowBase):
         self.beacons = []  # list for beacon statuses of Locus objects. 0 = no beacons, 15 = all beacons
         self.mismatches = []  # list for amounts of missed iterations of each Locus objects to monitor their connection
 
-        # Set model, random color and reparentness for each Panda3D object and hide it. Create text nodes with no info
-        # yet and set their scale and reparentness for each Panda3D object
+        # Set model, random color and reparentness for each Panda3D object and hide it. Create telemetry data label
+        # with no info yet and set their scale and reparentness for each Panda3D object
         for i in range(MAX_OBJECTS):
             drone = loader.loadModel('colorable_sphere')  # use colorable_sphere model for each object
             drone.setScale(0.22, 0.22, 0.22)  # scale it to approximately 0.1m diameter size
@@ -145,89 +145,93 @@ class Locus3D(ShowBase):
             self.dronesText.append(droneText)
 
     def __main(self, task):
-        if self.lps.telemetry_received() is not None:
-            addr = self.lps.get_addr()
-            pos, b_beacons = self.lps.get_position()
+        if self.lps.telemetry_received() is not None:  # True if Locus telemetry packet received
+            addr = self.lps.get_addr()  # get current Locus object dynamic address
+            pos, b_beacons = self.lps.get_position()  # get (x, y, z) and beacons status
             beacons = list('____')
-            if b_beacons & 1 != 0:
+            if b_beacons & 1 != 0:  # if first bit is 1, then beacons = '1___'
                 beacons[0] = '1'
-            if b_beacons & 2 != 0:
+            if b_beacons & 2 != 0:  # if second bit is 1, then beacons = '*2__' (* - depends on previous bit check)
                 beacons[1] = '2'
-            if b_beacons & 3 != 0:
+            if b_beacons & 3 != 0:  # if third bit is 1, then beacons = '**3_' (* - depends on previous bit checks)
                 beacons[2] = '3'
-            if b_beacons & 4 != 0:
+            if b_beacons & 4 != 0:  # if forth bit is 1, then beacons = '***4' (* - depends on previous bit checks)
                 beacons[3] = '4'
 
             if self.logging:
-                # if logging is True, log positions and amount of time passed
+                # Amount of time passed since logger was started as string
                 time = '%.4f' % (round((timeit.default_timer() - self.timer), 4))
-                data = time+', '+str(self.lps.get_telemetry())[1:-1]
-                self.timerText.setText(time)
-                self.log.write(data+'\n')
+                data = time+', '+str(self.lps.get_telemetry())[1:-1]  # [1:-1] without brackets
+                self.timerText.setText(time)  # display amount of time passed since logger was started on the screen
+                self.log.write(data+'\n')  # write time and telemetry data
+                # Uncomment two lines below to create extended log instead (INFO and RAWACCEL packets included)
                 # self.log.write(str(self.lps.get_info())+'\n')
                 # self.log.write(str(self.lps.get_rawAccel())+'\n')
 
-            if addr not in self.addr:
-                self.addr.append(addr)
-                self.pos.append(pos)
-                self.beacons.append(''.join(beacons))
-                self.mismatches.append(0)
+            if addr not in self.addr:  # if Locus object wasn't detected before
+                self.addr.append(addr)  # add its address to self.addr list
+                self.pos.append(pos)  # add its current position to self.pos list
+                self.beacons.append(''.join(beacons))  # add its current beacon status to self.beacons list
+                self.mismatches.append(0)  # set its missed iterations amount to 0
             if addr in self.addr:
+                # Find index of given address and update its position and beacon status
                 i = self.addr.index(addr)
                 self.pos[i] = pos
                 self.beacons[i] = ''.join(beacons)
 
             for i in range(len(self.addr)):
                 if addr != self.addr[i]:
-                    self.mismatches[i] += 1
+                    self.mismatches[i] += 1  # increase amount of mismatches by 1 for each address expect addr
                 else:
-                    self.mismatches[i] = 0
+                    self.mismatches[i] = 0  # set addr' mismatches amount to 0
 
-                # for each position in pos list move drones from drones list
-                if self.mismatches[i] > MAX_MISMATCHES:
-                    self.drones[i].hide()
+                if self.mismatches[i] > MAX_MISMATCHES:  # if amount of missed iterations exceeds maximum
+                    self.drones[i].hide()  # hide sphere model
                     node = self.dronesText[i].node()
-                    node.setText('')
+                    node.setText('')  # hide telemetry data label
                 else:
-                    self.drones[i].show()
+                    self.drones[i].show()  # show sphere model
                     self.drones[i].setX(self.pos[i][0])
                     self.drones[i].setY(self.pos[i][1])
                     self.drones[i].setZ(self.pos[i][2])
 
                     if self.debugging:
                         node = self.dronesText[i].node()
+                        # Display telemetry data label with 1st line being dynamic address, 2nd line being x, y, z and
+                        # 3rd line being beacon status (e.g. 1_3_)
                         node.setText('%d\n%.2f, %.2f, %.2f\n%s' % (self.addr[i], self.pos[i][0], self.pos[i][1],
                                                                    self.pos[i][2], self.beacons[i]))
                         self.dronesText[i].setX(self.pos[i][0]+0.2)
                         self.dronesText[i].setY(self.pos[i][1])
                         self.dronesText[i].setZ(self.pos[i][2]+0.2)
+                        # Labels follow the camera so they're always visible
                         self.dronesText[i].setBillboardPointEye()
         return task.cont
 
     def _startLogger(self):
         if not self.logging:
             self.logging = True
-            self.loggerText.setText('Logging...')
+            self.loggerText.setText('Logging...')  # display 'Logging...' on the screen
             self.timer = timeit.default_timer()  # timer initialization
-            self.logName = datetime.now().strftime('%d-%m-%Y_%H-%M')  # e.g. filename will be 13-03-2023_18-48.txt
-            self.log = open('logs/'+str(self.logName)+'.txt', 'w')
+            self.logName = datetime.now().strftime('%d-%m-%Y_%H-%M')  # e.g. filename will be 29-03-2023_17-53.txt
+            self.log = open('logs/'+str(self.logName)+'.txt', 'w')  # create file with given filename
 
     def _stopLogger(self):
         if self.logging:
             self.logging = False
-            self.loggerText.setText('Saved as {}.txt'.format(self.logName))
+            self.loggerText.setText('Saved as {}.txt'.format(self.logName))  # display filename that log was saved with
 
     def _debugger(self):
         if not self.debugging:
             self.debugging = True
         else:
             self.debugging = False
-            for i in range(len(self.dronesText)):
+            for i in range(len(self.dronesText)):  # hide all telemetry data labels
                 node = self.dronesText[i].node()
                 node.setText('')
 
     def _exit(self):
-        self.lps.stop()
+        self.lps.stop()  # stop gs_lps.us_nav thread, close serial port
         exit(0)
 
 

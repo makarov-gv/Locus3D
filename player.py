@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter.filedialog import askopenfilename
 import timeit
 
-MAX_MISMATCHES = 1000
+MAX_MISMATCHES = 1000  # maximum amount of missed iterations before Locus object will disappear from visualization
 
 
 def displayText(pos, msg, parent, align):
@@ -98,7 +98,7 @@ class LogPlayer(ShowBase):
         self.accept('f1', self._interact)  # assign _interact method to F1 keyboard button
         self.accept('f2', self._restart)  # assign _restart method to F2 keyboard button
         self.accept('f3', self._debugger)  # assign _debugger method to F3 keyboard button
-        taskMgr.add(self.__main, 'mainTask')  # start looped task (__main function)
+        taskMgr.add(self.__main, 'mainTask')  # add __main to Panda3D event handler
 
         # tkinter is used to get log filename, but other functions are locked by withdraw method
         tk.Tk().withdraw()
@@ -109,10 +109,10 @@ class LogPlayer(ShowBase):
                 string = line.strip()
                 self.log.append(string.split(', '))
 
-        self.playing = False
-        self.timerStop = 0.0
-        self.iterator = 0  # to define log iteration order
-        self.debugging = False
+        self.playing = False  # flag to monitor whether player should play the log or not
+        self.timerStop = 0.0  # for further use to pause the player
+        self.iterator = 0  # to define log line reading order
+        self.debugging = False  # flag to monitor whether visualization should display telemetry data or not
 
         displayText((0.08, -0.04 - 0.04), 'Log {} loaded'.format(fn), base.a2dTopLeft, TextNode.ALeft)
         displayText((0.08, -0.11 - 0.04), '[F1]: Play/pause player', base.a2dTopLeft, TextNode.ALeft)
@@ -120,122 +120,128 @@ class LogPlayer(ShowBase):
         displayText((0.08, -0.25 - 0.04), '[F3]: Show/hide debug labels', base.a2dTopLeft, TextNode.ALeft)
         self.status_text = displayText((0.08, 0.09), '', base.a2dBottomLeft, TextNode.ALeft)
         self.timer_text = displayText((0.08, 0.09), '', base.a2dBottomCenter, TextNode.ACenter)
-        base.setBackgroundColor(0, 0, 0)
+        base.setBackgroundColor(0, 0, 0)  # set background color of visualization to black
         drawAxis(self.render)
         drawGrid(self.render)
 
-        self.drones = []  # list of drones objects containing model, color and position parameters
-        self.dronesText = []
-        self.addr = []
-        self.pos = []
-        self.beacons = []
-        self.mismatches = []
+        self.drones = []  # list for Panda3D objects containing models, colors and position parameters
+        self.dronesText = []  # list for debugging text labels shown whenever self.debugging is True
+        self.addr = []  # list for dynamic addresses of Locus objects
+        self.pos = []  # list for x, y, z coordinates of Locus objects
+        self.beacons = []  # list for beacon statuses of Locus objects. 0 = no beacons, 15 = all beacons
+        self.mismatches = []  # list for amounts of missed iterations of each Locus objects to monitor their connection
 
-        addrNum = []
+        addrNum = []  # list for unique addressed found withing the log
         for i in range(len(self.log)):
-            if self.log[i][3] not in addrNum:
-                addrNum.append(self.log[i][3])
+            if self.log[i][3] not in addrNum:  # if addr is unique (not in addrNum list yet)
+                addrNum.append(self.log[i][3])  # add it to addrNum list
 
+        # Set model, random color and reparentness for each Panda3D object and hide it. Create telemetry data label
+        # with no info yet and set their scale and reparentness for each Panda3D object
         for i in range(len(addrNum)):
-            drone = loader.loadModel('colorable_sphere')  # using colorable_sphere model for each drone
-            drone.setScale(0.22, 0.22, 0.22)  # scale it to 0,1 diameter size (approximately)
-            drone.setColor(1.0-0.14*i, 0.0+0.14*i, 0.4+0.7*i, 1)  # temporary, to display colors
+            drone = loader.loadModel('colorable_sphere')  # use colorable_sphere model for each object
+            drone.setScale(0.22, 0.22, 0.22)  # scale it to approximately 0.1m diameter size
+            drone.setColor(1.0-0.14*i, 0.0+0.14*i, 0.4+0.7*i, 1)  # set color from random color scheme
             drone.reparentTo(self.render)
-            drone.hide()
+            drone.hide()  # hide object until it's assigned to a Locus object
             self.drones.append(drone)
 
             node = TextNode('xyz')
             node.setText('')
-            droneText = self.aspect2d.attachNewNode(node)
+            droneText = self.aspect2d.attachNewNode(node)  # create TextNode using Panda3D method
             droneText.setScale(0.22)
             droneText.reparentTo(self.render)
             self.dronesText.append(droneText)
 
     def __main(self, task):
-        if self.iterator >= len(self.log):
-            self.status_text.setText('Finished')
+        if self.iterator >= len(self.log):  # if end of the log reached
+            self.status_text.setText('Finished')  # display 'Finished' on the screen
         elif self.iterator < len(self.log):
             if self.playing:
-                logTime = float(self.log[self.iterator][0])
+                logTime = float(self.log[self.iterator][0])  # extract time from current log line
+                # If current line's time is smaller than real time defined with the timer, wait until it's not
                 if logTime < (timeit.default_timer() - self.timer):
                     timeText = 'Real time ' + '%.4f' % round((timeit.default_timer()-self.timer), 4) + ' / Log time: '\
-                               + '%.4f' % round(logTime, 4)
+                               + '%.4f' % round(logTime, 4)  # display both real time and log time for comparison
                     self.timer_text.setText(timeText)
-                    addr = int(self.log[self.iterator][3])
+                    addr = int(self.log[self.iterator][3])  # extract address from current log line
                     pos = (float(self.log[self.iterator][8]), float(self.log[self.iterator][9]),
-                           float(self.log[self.iterator][10]))
-                    b_beacons = int(self.log[self.iterator][15])
+                           float(self.log[self.iterator][10]))  # extract position from current log line
+                    b_beacons = int(self.log[self.iterator][15])  # extract beacon status from current log line
                     beacons = list('____')
-                    if b_beacons & 1 != 0:
+                    if b_beacons & 1 != 0:  # if first bit is 1, then beacons = '1___'
                         beacons[0] = '1'
-                    if b_beacons & 2 != 0:
+                    if b_beacons & 2 != 0:  # if second bit is 1, then beacons = '*2__'
                         beacons[1] = '2'
-                    if b_beacons & 3 != 0:
+                    if b_beacons & 3 != 0:  # if third bit is 1, then beacons = '**3_'
                         beacons[2] = '3'
-                    if b_beacons & 4 != 0:
+                    if b_beacons & 4 != 0:  # if forth bit is 1, then beacons = '***4'
                         beacons[3] = '4'
 
-                    if addr not in self.addr:
-                        self.addr.append(addr)
-                        self.pos.append(pos)
-                        self.beacons.append(''.join(beacons))
-                        self.mismatches.append(0)
+                    if addr not in self.addr:  # if Locus object wasn't detected before
+                        self.addr.append(addr)  # add its address to self.addr list
+                        self.pos.append(pos)  # add its current position to self.pos list
+                        self.beacons.append(''.join(beacons))  # add its current beacon status to self.beacons list
+                        self.mismatches.append(0)  # set its missed iterations amount to 0
                     if addr in self.addr:
+                        # Find index of given address and update its position and beacon status
                         i = self.addr.index(addr)
                         self.pos[i] = pos
                         self.beacons[i] = ''.join(beacons)
 
                     for i in range(len(self.addr)):
                         if addr != self.addr[i]:
-                            self.mismatches[i] += 1
+                            self.mismatches[i] += 1  # increase amount of mismatches by 1 for each address expect addr
                         else:
-                            self.mismatches[i] = 0
+                            self.mismatches[i] = 0  # set addr' mismatches amount to 0
 
-                        if self.mismatches[i] > MAX_MISMATCHES:
-                            self.drones[i].hide()
+                        if self.mismatches[i] > MAX_MISMATCHES:  # if amount of mismatches exceeds maximum
+                            self.drones[i].hide()  # hide sphere model
                             node = self.dronesText[i].node()
-                            node.setText('')
+                            node.setText('')  # hide telemetry data label
                         else:
-                            # for each position in pos list move drones from drones list
-                            self.drones[i].show()
+                            self.drones[i].show()  # show sphere model
                             self.drones[i].setX(self.pos[i][0])
                             self.drones[i].setY(self.pos[i][1])
                             self.drones[i].setZ(self.pos[i][2])
 
                             if self.debugging:
                                 node = self.dronesText[i].node()
+                                # Display telemetry data label with 1st line being dynamic address, 2nd line being
+                                # x, y, z and 3rd line being beacon status
                                 node.setText('%d\n%.2f, %.2f, %.2f\n%s' % (self.addr[i], self.pos[i][0], self.pos[i][1],
                                                                            self.pos[i][2], self.beacons[i]))
                                 self.dronesText[i].setX(self.pos[i][0] + 0.2)
                                 self.dronesText[i].setY(self.pos[i][1])
                                 self.dronesText[i].setZ(self.pos[i][2] + 0.2)
+                                # Labels follow the camera so they're always visible
                                 self.dronesText[i].setBillboardPointEye()
-                    self.iterator += 1
+                    self.iterator += 1  # go to the next log line
             return task.cont
 
     def _interact(self):
         if not self.playing:
             self.playing = True
-            self.status_text.setText('Playing...')
-            self.timer = timeit.default_timer()-self.timerStop
+            self.status_text.setText('Playing...')  # display 'Playing...' on the screen
+            self.timer = timeit.default_timer()-self.timerStop  # timer initialization/reinitialization
         else:
             self.playing = False
-            self.timerStop = timeit.default_timer()-self.timer
-            self.status_text.setText('Paused')
+            self.timerStop = timeit.default_timer()-self.timer  # store amount of time passed before pause
+            self.status_text.setText('Paused')  # display 'Paused' on the screen
 
     def _restart(self):
         self.playing = True
         self.iterator = 0
-        self.timer = timeit.default_timer()
-        taskMgr.add(self.__main, 'mainTask')
-        self.status_text.setText('Restarted, playing...')
+        self.timer = timeit.default_timer()  # restart timer
+        taskMgr.add(self.__main, 'mainTask')  # restart __main in Panda3D event handler
+        self.status_text.setText('Restarted, playing...')  # display 'Restarted, playing...' on the screen
 
     def _debugger(self):
         if not self.debugging:
             self.debugging = True
         else:
             self.debugging = False
-            for i in range(len(self.dronesText)):
+            for i in range(len(self.dronesText)):  # hide all telemetry data labels
                 node = self.dronesText[i].node()
                 node.setText('')
 
