@@ -5,8 +5,8 @@ from datetime import datetime
 import timeit
 import gs_lps
 
-MAX_OBJECTS = 30
-MAX_MISMATCHES = 150
+MAX_OBJECTS = 30  # amount of sphere models to spawn for further assigning to Locus objects
+MAX_MISMATCHES = 150  # maximum amount of iterations before Locus object will disappear from visualization
 
 
 def displayText(pos, msg, parent, align):
@@ -99,43 +99,47 @@ class Locus3D(ShowBase):
         base.win.setCloseRequestEvent('window_exit')
         self.accept('f1', self._startLogger)  # assign _startLogger method to F1 keyboard button
         self.accept('f2', self._stopLogger)  # assign _stopLogger method to F2 keyboard button
-        self.accept('f3', self._debugger)  # assign debugger method to F3 keyboard button
-        self.accept('window_exit', self._exit)
-        taskMgr.add(self.__main, 'mainTask')  # start looped task (__main function)
+        self.accept('f3', self._debugger)  # assign _debugger method to F3 keyboard button
+        self.accept('window_exit', self._exit)  # call _exit method upon closing window
+        taskMgr.add(self.__main, 'mainTask')  # add __main to Panda3D event handler
 
         displayText((0.08, -0.04 - 0.04), '[F1]: Start logger', base.a2dTopLeft, TextNode.ALeft)
         displayText((0.08, -0.11 - 0.04), '[F2]: Stop logger, save log', base.a2dTopLeft, TextNode.ALeft)
         displayText((0.08, -0.18 - 0.04), '[F3]: Show/hide debug labels', base.a2dTopLeft, TextNode.ALeft)
         self.loggerText = displayText((0.08, 0.09), "", base.a2dBottomLeft, TextNode.ALeft)
         self.timerText = displayText((0.08, 0.09), '', base.a2dBottomCenter, TextNode.ACenter)
-        base.setBackgroundColor(0, 0, 0)
+        base.setBackgroundColor(0, 0, 0)  # set background color of visualization to black
         drawAxis(self.render)
         drawGrid(self.render)
 
-        self.lps = gs_lps.us_nav(serial_port="/dev/ttyUSB0")  # to be replaced with lps
-        self.lps.start()
+        # Initialize gs_lps.us_nav class object with given serial port. us_nav creates a serial connection to Locus
+        # in a separate thread to receive structured data packets
+        self.lps = gs_lps.us_nav(serial_port="/dev/ttyUSB0")
+        self.lps.start()  # start the thread
 
-        self.logging = False
-        self.debugging = False
+        self.logging = False  # flag to monitor whether visualization should log incoming data or not
+        self.debugging = False  # flag to monitor whether visualization should display telemetry data or not
 
-        self.drones = []  # list of drones objects containing model, color and position parameters
-        self.dronesText = []
-        self.addr = []
-        self.pos = []
-        self.beacons = []
-        self.mismatches = []
+        self.drones = []  # list for Panda3D objects containing models, colors and position parameters
+        self.dronesText = []  # list for debugging text labels shown whenever self.debugging is True
+        self.addr = []  # list for dynamic addresses of Locus objects
+        self.pos = []  # list for x, y, z coordinates of Locus objects
+        self.beacons = []  # list for beacon statuses of Locus objects. 0 = no beacons, 15 = all beacons
+        self.mismatches = []  # list for amounts of missed iterations of each Locus objects to monitor their connection
 
+        # Set model, random color and reparentness for each Panda3D object and hide it. Create text nodes with no info
+        # yet and set their scale and reparentness for each Panda3D object
         for i in range(MAX_OBJECTS):
-            drone = loader.loadModel('colorable_sphere')  # using colorable_sphere model for each drone
-            drone.setScale(0.22, 0.22, 0.22)  # scale it to 0,1 diameter size (approximately)
-            drone.setColor(1.0-0.14*i, 0.0+0.14*i, 0.4+0.7*i, 1)  # temporary, to display colors
+            drone = loader.loadModel('colorable_sphere')  # use colorable_sphere model for each object
+            drone.setScale(0.22, 0.22, 0.22)  # scale it to approximately 0.1m diameter size
+            drone.setColor(1.0-0.14*i, 0.0+0.14*i, 0.4+0.7*i, 1)  # set color from random color scheme
             drone.reparentTo(self.render)
-            drone.hide()
+            drone.hide()  # hide object until it's assigned to a Locus object
             self.drones.append(drone)
 
             node = TextNode('xyz')
             node.setText('')
-            droneText = self.aspect2d.attachNewNode(node)
+            droneText = self.aspect2d.attachNewNode(node)  # create TextNode using Panda3D method
             droneText.setScale(0.22)
             droneText.reparentTo(self.render)
             self.dronesText.append(droneText)
