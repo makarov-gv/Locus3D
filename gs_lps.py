@@ -9,6 +9,10 @@ from random import randint
 
 
 class crc8(object):
+    """
+    CRC8 is provided to detect or verify possible errors after data transmission or saving. It uses the principle of
+    division and remainder to detect errors
+    """
     crcTable = [0x00, 0x5E, 0xBC, 0xE2, 0x61, 0x3F, 0xDD, 0x83,
                 0xC2, 0x9C, 0x7E, 0x20, 0xA3, 0xFD, 0x1F, 0x41,
                 0x9D, 0xC3, 0x21, 0x7F, 0xFC, 0xA2, 0x40, 0x1E,
@@ -43,6 +47,11 @@ class crc8(object):
                 0xB6, 0xE8, 0x0A, 0x54, 0xD7, 0x89, 0x6B, 0x35]
 
     def crc8(self, data_bytes):
+        """
+        CRC8 received packet data integrity check using predefined cyclic redundancy check table
+        :param data_bytes: bytes of received data
+        :return: crc = amount of bytes in received data if there are no errors
+        """
         crc = 0
         for byte in data_bytes:
             crc = self.crcTable[crc ^ byte]
@@ -54,6 +63,7 @@ class us_nav(Thread):
         Thread.__init__(self)
         self.debug = debug
         if not self.debug:
+            # Initialize serial connection through RS-485 using given port and other parameters
             self.ser = serial.Serial()
             self.ser.port = serial_port
             self.ser.baudrate = 57600
@@ -83,7 +93,19 @@ class us_nav(Thread):
         """
         self.__TELEMETRY_PACKET = '<BBBBI3i3hHBBBx'
         self.__SYS_STATUS_PACKET = '<HBBII'
+        """
+        __INFO_PACKET structure:uint16_t hwId H
+                                uint16_t fwType H
+                                uint16_t fwVersion H
+                                uint8_t protoMinor B
+                                uint8_t protoMajor B
+                                uint32_t commit I
+                                uint16_t commitCount H
+        """
         self.__INFO_PACKET = '<HHHBBIH'
+        """
+        __RAW_ACCEL_PACKET structure: int16_t accel[3] 3h
+        """
         self.__RAW_ACCEL_PACKET = '<3h'
         self.__STRENGTH_PACKET = '<hhhh'
         self.__EV_TELEMETRY = 0x02
@@ -244,7 +266,7 @@ class us_nav(Thread):
         if self.x is not None and  self.y is not None and self.z is not None and self.beacons is not None:
             return [self.x/1000.0, self.y/1000.0, self.z/1000.0], self.beacons
         else:
-            return [0.0, 0.0, 0.0]
+            return [0.0, 0.0, 0.0], 0
 
     def get_strength(self):
         if self.levels is not None:
